@@ -4,7 +4,12 @@ __pycache__/
 build/
 dist/
 wheels/
+alembic/
 *.egg-info
 
 # Virtual environments
 .venv
+.env
+.DS_Store
+uv.lock
+alembic.ini
