@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 # Загружаем .env
 load_dotenv()
 
-# Получаем URL из .env!
+# Получаем URL из .env
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(DATABASE_URL)
