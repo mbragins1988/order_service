@@ -15,7 +15,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Подключаем роутер&
+# Подключаем роутер
 app.include_router(router, prefix="/api")
 
 # Корневой эндпоинт для проверки
