@@ -1,13 +1,7 @@
 from pydantic import BaseModel
 from datetime import datetime
-from enum import Enum
-
-
-class OrderStatus(str, Enum):
-    NEW = "NEW"
-    PAID = "PAID"
-    SHIPPED = "SHIPPED"
-    CANCELLED = "CANCELLED"
+from typing import Optional
+from app.models import OrderStatus
 
 
 # Модель для запроса на создание заказа
@@ -27,9 +21,10 @@ class OrderResponse(BaseModel):
     status: OrderStatus
     created_at: datetime
     updated_at: datetime
+    payment_id: Optional[str] = None  # ← ДОБАВЛЯЕМ
 
     class Config:
-        from_attributes = True  # Для совместимости с SQLAlchemy
+        from_attributes = True
 
 
 # Модель для товара из Catalog Service
@@ -44,3 +39,12 @@ class CatalogItem(BaseModel):
 # Модель для ошибки
 class ErrorResponse(BaseModel):
     detail: str
+
+
+# Модель для callback от Payments Service
+class PaymentCallbackRequest(BaseModel):
+    payment_id: str
+    order_id: str
+    status: str  # "succeeded" или "failed"
+    amount: str
+    error_message: Optional[str] = None

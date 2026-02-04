@@ -23,6 +23,7 @@ class OrderDB(Base):
     item_id = Column(String, nullable=False)
     status = Column(Enum(OrderStatus), default=OrderStatus.NEW)
     idempotency_key = Column(String, unique=True, index=True)
+    payment_id = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

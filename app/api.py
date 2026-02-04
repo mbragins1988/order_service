@@ -1,52 +1,21 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy.orm import Session
 import os
-import httpx
 import uuid
-
 
 from app.schemas import (
     CreateOrderRequest,
     OrderResponse,
     CatalogItem,
     ErrorResponse,
-    OrderStatus,
 )
-from app.models import OrderDB
+from app.models import OrderDB, OrderStatus
 from app.database import get_db
+from app.clients import CatalogClient, PaymentsClient, YOUR_SERVICE_URL
 
-router = APIRouter()
-
-# Глобальные настройки
 CATALOG_BASE_URL = "https://capashi.dev-1.python-labs.ru"
 API_TOKEN = os.getenv("API_TOKEN")
-
-
-async def get_catalog_item(item_id: str) -> CatalogItem:
-    """Получить товар из Catalog Service"""
-    try:
-        headers = {"X-API-Key": API_TOKEN}
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{CATALOG_BASE_URL}/api/catalog/items/{item_id}",
-                headers=headers,
-                timeout=10.0,
-            )
-            if response.status_code == 200:
-                print("Товар выбран")
-                return CatalogItem(**response.json())
-            elif response.status_code == 404:
-                return None
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Catalog Service недоступен",
-                )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Ошибка соединения с Catalog Service: {str(e)}",
-        )
+router = APIRouter()
 
 
 @router.post(
@@ -80,17 +49,22 @@ async def create_order(
             status=existing_order.status,
             created_at=existing_order.created_at,
             updated_at=existing_order.updated_at,
+            payment_id=existing_order.payment_id,
         )
 
     # Проверка товара в Catalog Service
     print(f"Проверка товара {order_request.item_id} в Catalog Service")
-    catalog_item = await get_catalog_item(order_request.item_id)
+    catalog_data = await CatalogClient.get_item(order_request.item_id)
+    print(catalog_data)
 
-    if not catalog_item:
+    if not catalog_data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Товар не найден в Catalog Service",
         )
+
+    catalog_item = CatalogItem(**catalog_data)
+
     # Проверка на доступность количества товара
     if catalog_item.available_qty < order_request.quantity:
         raise HTTPException(
@@ -102,26 +76,67 @@ async def create_order(
         f"Товар доступен: {catalog_item.name}, цена: {catalog_item.price}, в наличии: {catalog_item.available_qty}"
     )
 
+    # Рассчитываем сумму заказа
+    try:
+        item_price = float(catalog_item.price)
+        order_amount = str(item_price * order_request.quantity)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Некорректная цена товара",
+        )
+
     # Создание заказа в БД
     order_id = str(uuid.uuid4())
-    print(f"Сохранение заказа {order_id} в БД")
+    print(f"Создание заказа {order_id} в БД")
 
     order = OrderDB(
         id=order_id,
         user_id=order_request.user_id,
         quantity=order_request.quantity,
         item_id=order_request.item_id,
-        status=OrderStatus.NEW.value,
-        idempotency_key=str(uuid.uuid4()),  # Генерируем ключ идемпотентности
+        status=OrderStatus.NEW,  # ← Используем OrderStatus
+        idempotency_key=order_request.idempotency_key,
+        payment_id=None,
     )
 
     db.add(order)
     db.commit()
     db.refresh(order)
 
+    # Создание платежа в Payments Service
+    try:
+        callback_url = f"{YOUR_SERVICE_URL}/api/orders/payment-callback"
+        print(f"Создание платежа для заказа {order_id}, callback_url: {callback_url}")
+
+        payment_response = await PaymentsClient.create_payment(
+            order_id=order_id,
+            amount=order_amount,
+            callback_url=callback_url,
+            idempotency_key=f"payment_{order_request.idempotency_key}",
+        )
+
+        print(f"Платеж создан: {payment_response}")
+
+        # Сохраняем payment_id в заказ
+        order.payment_id = payment_response.get("id")
+        db.commit()
+        db.refresh(order)
+
+    except Exception as e:
+        print(f"Ошибка при создании платежа: {e}")
+
+        # Если платеж не создан - отменяем заказ
+        order.status = OrderStatus.CANCELLED  # ← Используем OrderStatus
+        db.commit()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Не удалось создать платеж: {str(e)}",
+        )
+
     print(f"Заказ создан: {order_id}, ключ идемпотентности - {order.idempotency_key}")
 
-    # 4. Возврат результата
     return OrderResponse(
         id=order.id,
         user_id=order.user_id,
@@ -130,6 +145,7 @@ async def create_order(
         status=order.status,
         created_at=order.created_at,
         updated_at=order.updated_at,
+        payment_id=order.payment_id,
     )
 
 
@@ -140,7 +156,7 @@ async def create_order(
 )
 async def get_order(order_id: str, db: Session = Depends(get_db)):
     """Получить заказ по ID."""
-    print(f"🔍 Поиск заказа: {order_id}")
+    print(f"Поиск заказа: {order_id}")
 
     order = db.query(OrderDB).filter(OrderDB.id == order_id).first()
 
@@ -157,4 +173,68 @@ async def get_order(order_id: str, db: Session = Depends(get_db)):
         status=order.status,
         created_at=order.created_at,
         updated_at=order.updated_at,
+        payment_id=order.payment_id,
     )
+
+
+@router.post("/orders/payment-callback")
+async def payment_callback(callback_data: dict, db: Session = Depends(get_db)):
+    """Обработка callback от Payments Service"""
+    print(f"📞 Получен callback от Payments Service: {callback_data}")
+
+    try:
+        # Извлекаем данные из запроса
+        payment_id = callback_data.get("payment_id")
+        order_id = callback_data.get("order_id")
+        payment_status = callback_data.get("status")
+
+        if not all([payment_id, order_id, payment_status]):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Некорректные данные в callback",
+            )
+
+        # Находим заказ
+        order = db.query(OrderDB).filter(OrderDB.id == order_id).first()
+        if not order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Заказ не найден"
+            )
+
+        # Проверяем, не обработан ли уже этот платеж
+        # (идемпотентность - если статус уже обновлен, просто возвращаем успех)
+        if order.status == OrderStatus.PAID and payment_status == "succeeded":
+            print(f"✅ Платеж уже обработан для заказа {order_id}")
+            return {"status": "ok", "message": "Payment already processed"}
+
+        if order.status == OrderStatus.CANCELLED and payment_status == "failed":
+            print(f"❌ Платеж уже отменен для заказа {order_id}")
+            return {"status": "ok", "message": "Payment already cancelled"}
+
+        # Обновляем статус заказа в зависимости от статуса платежа
+        if payment_status == "succeeded":
+            order.status = OrderStatus.PAID
+            print(f"✅ Платеж успешен для заказа {order_id}")
+        elif payment_status == "failed":
+            order.status = OrderStatus.CANCELLED
+            print(f"❌ Платеж не прошел для заказа {order_id}")
+        else:
+            print(f"⚠️ Неизвестный статус платежа: {payment_status}")
+            return {"status": "ok", "message": "Unknown payment status, no changes"}
+
+        # Обновляем payment_id если он не был сохранен ранее
+        if not order.payment_id:
+            order.payment_id = payment_id
+
+        db.commit()
+
+        return {"status": "ok", "message": "Payment callback processed successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Ошибка обработки callback: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ошибка обработки callback: {str(e)}",
+        )
