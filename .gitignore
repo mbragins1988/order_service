@@ -11,5 +11,4 @@ alembic/
 .venv
 .env
 .DS_Store
-uv.lock
 alembic.ini
