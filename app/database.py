@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 
 # Загружаем .env
-load_dotenv()
+# load_dotenv()
 
 print("=== DATABASE CONFIG DEBUG ===")
 print(f"POSTGRES_USERNAME: {os.getenv('POSTGRES_USERNAME')}")
