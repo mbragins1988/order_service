@@ -13,7 +13,6 @@ from app.models import OrderDB, OrderStatus
 from app.database import get_db
 from app.clients import CatalogClient, PaymentsClient, YOUR_SERVICE_URL
 
-CATALOG_BASE_URL = "https://capashi.dev-1.python-labs.ru"
 API_TOKEN = os.getenv("API_TOKEN")
 router = APIRouter()
 
@@ -55,7 +54,6 @@ async def create_order(
     # Проверка товара в Catalog Service
     print(f"Проверка товара {order_request.item_id} в Catalog Service")
     catalog_data = await CatalogClient.get_item(order_request.item_id)
-    print(catalog_data)
 
     if not catalog_data:
         raise HTTPException(
@@ -106,7 +104,7 @@ async def create_order(
 
     # Создание платежа в Payments Service
     try:
-        callback_url = f"{YOUR_SERVICE_URL}/api/orders/payment-callback"
+        callback_url = f"/api/orders/payment-callback"
         print(f"Создание платежа для заказа {order_id}, callback_url: {callback_url}")
 
         payment_response = await PaymentsClient.create_payment(
