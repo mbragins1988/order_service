@@ -15,8 +15,16 @@ COPY pyproject.toml uv.lock ./
 # Устанавливаем зависимости в систему
 RUN uv pip install --system --no-cache -r pyproject.toml
 
+# Копируем Alembic миграции
+COPY alembic.ini .
+COPY alembic/ ./alembic/
+
+# Копируем entrypoint
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
+
 # Копируем код приложения
 COPY app/ ./app/
 
-# Запускаем приложение
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Запускаем через entrypoint
+ENTRYPOINT ["./entrypoint.sh"]
