@@ -14,7 +14,7 @@ app = FastAPI(
 app.include_router(router, prefix="/api")
 
 
-# Корневой эндпоинт для проверки
+# Корневой эндпоинт для проверки.
 @app.get("/")
 async def root():
     return {"message": "Order Service запущен"}
