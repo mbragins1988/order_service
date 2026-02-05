@@ -16,11 +16,13 @@ class CatalogClient:
         try:
             headers = {"X-API-Key": API_TOKEN}
             async with httpx.AsyncClient() as client:
+                print("URL", f"{CATALOG_BASE_URL}/api/catalog/items/{item_id}")
                 response = await client.get(
                     f"{CATALOG_BASE_URL}/api/catalog/items/{item_id}",
                     headers=headers,
                     timeout=10.0,
                 )
+                print("RESPONSE", response)
                 if response.status_code == 200:
                     return response.json()
                 elif response.status_code == 404:
@@ -66,8 +68,8 @@ class PaymentsClient:
                     return response.json()
                 else:
                     raise Exception(
-                        f"Ошибка оплаты: {response.status_code} - {response.text}"
+                        f"Payment service error: {response.status_code} - {response.text}"
                     )
 
         except Exception as e:
-            raise Exception(f"Неуспешная попытка оплаты: {str(e)}")
+            raise Exception(f"Failed to create payment: {str(e)}")
