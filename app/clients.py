@@ -3,10 +3,8 @@ import os
 from typing import Dict, Any
 from fastapi import HTTPException, status
 
-CATALOG_BASE_URL = "https://capashino.dev-1.python-labs.ru"
+CATALOG_BASE_URL = os.getenv("CATALOG_BASE_URL")
 API_TOKEN = os.getenv("API_TOKEN")
-
-YOUR_SERVICE_URL = os.getenv("SERVICE_URL", "http://localhost:8000")
 
 
 class CatalogClient:
@@ -49,14 +47,12 @@ class PaymentsClient:
         """Создать платеж в Payments Service"""
         try:
             headers = {"X-API-Key": API_TOKEN, "Content-Type": "application/json"}
-
             payload = {
                 "order_id": order_id,
-                "amount": amount,
+                "amount": "200.00",
                 "callback_url": callback_url,
                 "idempotency_key": idempotency_key,
             }
-
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     f"{CATALOG_BASE_URL}/api/payments",
@@ -64,13 +60,14 @@ class PaymentsClient:
                     headers=headers,
                     timeout=30.0,
                 )
+                print("RESPONSE", response, payload)
 
-                if response.status_code == 200:
+                if response.status_code == 201:
                     return response.json()
                 else:
                     raise Exception(
-                        f"Payment service error: {response.status_code} - {response.text}"
+                        f"Ошибка оплаты: {response.status_code} - {response.text}"
                     )
 
         except Exception as e:
-            raise Exception(f"Failed to create payment: {str(e)}")
+            raise Exception(f"Неуспешная попытка оплаты: {str(e)}")

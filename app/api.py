@@ -11,9 +11,10 @@ from app.schemas import (
 )
 from app.models import OrderDB, OrderStatus
 from app.database import get_db
-from app.clients import CatalogClient, PaymentsClient, YOUR_SERVICE_URL
+from app.clients import CatalogClient, PaymentsClient
 
 API_TOKEN = os.getenv("API_TOKEN")
+SERVICE_URL = os.getenv("SERVICE_URL")
 router = APIRouter()
 
 
@@ -93,7 +94,7 @@ async def create_order(
         user_id=order_request.user_id,
         quantity=order_request.quantity,
         item_id=order_request.item_id,
-        status=OrderStatus.NEW,  # ← Используем OrderStatus
+        status=OrderStatus.NEW,
         idempotency_key=order_request.idempotency_key,
         payment_id=None,
     )
@@ -102,9 +103,9 @@ async def create_order(
     db.commit()
     db.refresh(order)
 
-    # Создание платежа в Payments Service
+    # # Создание платежа в Payments Service
     try:
-        callback_url = f"/api/orders/payment-callback"
+        callback_url = f"{SERVICE_URL}/api/orders/payment-callback"
         print(f"Создание платежа для заказа {order_id}, callback_url: {callback_url}")
 
         payment_response = await PaymentsClient.create_payment(
@@ -113,6 +114,14 @@ async def create_order(
             callback_url=callback_url,
             idempotency_key=f"payment_{order_request.idempotency_key}",
         )
+
+        if payment_response.get("status") == "succeeded":
+            order.status = OrderStatus.PAID  # ← ставим PAID сразу!
+            order.payment_id = payment_response.get("id")
+            print(f"Платеж выполнен, статус заказа: PAID")
+        else:
+            order.status = OrderStatus.CANCELLED
+            print(f"Платеж не выполнен, статус заказа: CANCELLED")
 
         print(f"Платеж создан: {payment_response}")
 
@@ -130,7 +139,7 @@ async def create_order(
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Не удалось создать платеж: {str(e)}",
+            detail=f"Не удалось выаолнить платеж: {str(e)}",
         )
 
     print(f"Заказ создан: {order_id}, ключ идемпотентности - {order.idempotency_key}")
