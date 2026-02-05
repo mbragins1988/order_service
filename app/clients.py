@@ -51,7 +51,7 @@ class PaymentsClient:
             headers = {"X-API-Key": API_TOKEN, "Content-Type": "application/json"}
             payload = {
                 "order_id": order_id,
-                "amount": "200.00",
+                "amount": amount,
                 "callback_url": callback_url,
                 "idempotency_key": idempotency_key,
             }

@@ -107,7 +107,6 @@ async def create_order(
     try:
         callback_url = f"{SERVICE_URL}/api/orders/payment-callback"
         print(f"Создание платежа для заказа {order_id}, callback_url: {callback_url}")
-
         payment_response = await PaymentsClient.create_payment(
             order_id=order_id,
             amount=order_amount,
