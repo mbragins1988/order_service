@@ -12,7 +12,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Импортируем Base
 from app.database import Base
-from app.models import OrderDB  # ← Импортируем модели
 from dotenv import load_dotenv
 
 # Загружаем .env
