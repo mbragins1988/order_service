@@ -3,8 +3,7 @@ import os
 from typing import Dict, Any
 from fastapi import HTTPException, status
 
-CATALOG_BASE_URL = "https://capashi.dev-1.python-labs.ru"
-PAYMENTS_BASE_URL = "https://capashi.dev-1.python-labs.ru"
+CATALOG_BASE_URL = "https://capashino.dev-1.python-labs.ru"
 API_TOKEN = os.getenv("API_TOKEN")
 
 YOUR_SERVICE_URL = os.getenv("SERVICE_URL", "http://localhost:8000")
@@ -60,7 +59,7 @@ class PaymentsClient:
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{PAYMENTS_BASE_URL}/api/payments",
+                    f"{CATALOG_BASE_URL}/api/payments",
                     json=payload,
                     headers=headers,
                     timeout=30.0,
