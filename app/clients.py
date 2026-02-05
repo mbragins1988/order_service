@@ -7,8 +7,6 @@ CATALOG_BASE_URL = "https://capashi.dev-1.python-labs.ru"
 PAYMENTS_BASE_URL = "https://capashi.dev-1.python-labs.ru"
 API_TOKEN = os.getenv("API_TOKEN")
 
-# Нужно получить URL твоего сервиса для callback
-# В Kubernetes это можно сделать через переменную окружения
 YOUR_SERVICE_URL = os.getenv("SERVICE_URL", "http://localhost:8000")
 
 
