@@ -12,6 +12,7 @@ from app.schemas import (
 from app.models import OrderDB, OrderStatus
 from app.database import get_db
 from app.clients import CatalogClient, PaymentsClient
+from app.outbox_service import OutboxService
 
 API_TOKEN = os.getenv("API_TOKEN")
 SERVICE_URL = os.getenv("SERVICE_URL")
@@ -113,7 +114,7 @@ async def create_order(
             callback_url=callback_url,
             idempotency_key=f"payment_{order_request.idempotency_key}",
         )
-
+        print("Статус платежа", payment_response.get("status"))
         if payment_response.get("status") == "succeeded":
             order.status = OrderStatus.PAID  # ← ставим PAID сразу!
             order.payment_id = payment_response.get("id")
@@ -186,61 +187,71 @@ async def get_order(order_id: str, db: Session = Depends(get_db)):
 @router.post("/orders/payment-callback")
 async def payment_callback(callback_data: dict, db: Session = Depends(get_db)):
     """Обработка callback от Payments Service"""
-    print(f"📞 Получен callback от Payments Service: {callback_data}")
-
+    print(f"Получен callback: {callback_data}")
+    
     try:
-        # Извлекаем данные из запроса
         payment_id = callback_data.get("payment_id")
         order_id = callback_data.get("order_id")
         payment_status = callback_data.get("status")
-
+        
         if not all([payment_id, order_id, payment_status]):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Некорректные данные в callback",
             )
-
+        
         # Находим заказ
         order = db.query(OrderDB).filter(OrderDB.id == order_id).first()
         if not order:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Заказ не найден"
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="Заказ не найден"
             )
-
-        # Проверяем, не обработан ли уже этот платеж
-        # (идемпотентность - если статус уже обновлен, просто возвращаем успех)
+        
+        # Идемпотентность - если уже обработали
         if order.status == OrderStatus.PAID and payment_status == "succeeded":
-            print(f"✅ Платеж уже обработан для заказа {order_id}")
-            return {"status": "ok", "message": "Payment already processed"}
-
+            return {"status": "ok", "message": "Already processed"}
+        
         if order.status == OrderStatus.CANCELLED and payment_status == "failed":
-            print(f"❌ Платеж уже отменен для заказа {order_id}")
-            return {"status": "ok", "message": "Payment already cancelled"}
-
-        # Обновляем статус заказа в зависимости от статуса платежа
+            return {"status": "ok", "message": "Already cancelled"}
+        
+        # Обработка платежа
         if payment_status == "succeeded":
             order.status = OrderStatus.PAID
-            print(f"✅ Платеж успешен для заказа {order_id}")
+            
+            # Outbox + Kafka: публикуем событие order.paid
+            outbox_service = OutboxService()
+            
+            event_data = {
+                "order_id": order.id,
+                "item_id": order.item_id,
+                "quantity": str(order.quantity),
+                "idempotency_key": f"order_paid_{order.id}_{uuid.uuid4()}"
+            }
+            
+            outbox_event = outbox_service.save_and_publish(
+                db=db,
+                event_type="order.paid",
+                event_data=event_data,
+                order_id=order.id
+            )
+            
+            print(f"Событие order.paid опубликовано: {outbox_event.id}")
+            
         elif payment_status == "failed":
             order.status = OrderStatus.CANCELLED
-            print(f"❌ Платеж не прошел для заказа {order_id}")
-        else:
-            print(f"⚠️ Неизвестный статус платежа: {payment_status}")
-            return {"status": "ok", "message": "Unknown payment status, no changes"}
-
-        # Обновляем payment_id если он не был сохранен ранее
+            print(f"Платеж не прошел для заказа {order_id}")
+        
         if not order.payment_id:
             order.payment_id = payment_id
-
+        
         db.commit()
-
-        return {"status": "ok", "message": "Payment callback processed successfully"}
-
-    except HTTPException:
-        raise
+        
+        return {"status": "ok", "message": "Callback processed"}
+    
     except Exception as e:
-        print(f"❌ Ошибка обработки callback: {e}")
+        print(f"Ошибка обработки callback: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка обработки callback: {str(e)}",
+            detail=f"Ошибка обработки: {str(e)}",
         )

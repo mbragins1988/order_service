@@ -9,7 +9,7 @@ from alembic import context
 
 # Добавляем путь к проекту
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
+import app.models
 # Импортируем Base
 from app.database import Base
 from dotenv import load_dotenv

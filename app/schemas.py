@@ -4,16 +4,16 @@ from typing import Optional
 from app.models import OrderStatus
 
 
-# Модель для запроса на создание заказа
 class CreateOrderRequest(BaseModel):
+    """Модель для запроса на создание заказа"""
     user_id: str
     quantity: int
     item_id: str
     idempotency_key: str
 
 
-# Модель для ответа с заказом
 class OrderResponse(BaseModel):
+    """Модель для ответа с заказом"""
     id: str
     user_id: str
     quantity: int
@@ -21,14 +21,14 @@ class OrderResponse(BaseModel):
     status: OrderStatus
     created_at: datetime
     updated_at: datetime
-    payment_id: Optional[str] = None  # ← ДОБАВЛЯЕМ
+    payment_id: Optional[str] = None
 
     class Config:
         from_attributes = True
 
 
-# Модель для товара из Catalog Service
 class CatalogItem(BaseModel):
+    """Модель для товара из Catalog Service"""
     id: str
     name: str
     price: str
@@ -36,15 +36,47 @@ class CatalogItem(BaseModel):
     created_at: datetime
 
 
-# Модель для ошибки
 class ErrorResponse(BaseModel):
+    """Модель для ошибки"""
     detail: str
 
 
-# Модель для callback от Payments Service
 class PaymentCallbackRequest(BaseModel):
+    """Модель для callback от Payments Service"""
     payment_id: str
     order_id: str
     status: str  # "succeeded" или "failed"
     amount: str
     error_message: Optional[str] = None
+
+
+# Модели для Kafka событий
+class OrderPaidEvent(BaseModel):
+    event_type: str = "order.paid"
+    order_id: str
+    item_id: str
+    quantity: str
+    idempotency_key: str
+
+
+class OrderShippedEvent(BaseModel):
+    event_type: str = "order.shipped"
+    order_id: str
+    item_id: str
+    quantity: int
+    shipment_id: str
+
+
+class OrderCancelledEvent(BaseModel):
+    event_type: str = "order.cancelled"
+    order_id: str
+    item_id: str
+    quantity: int
+    reason: Optional[str] = None
+
+
+class CreateOutboxEventRequest(BaseModel):
+    """Модель для сохранения в outbox"""
+    event_type: str
+    event_data: dict
+    order_id: str
