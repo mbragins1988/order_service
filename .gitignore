@@ -5,6 +5,7 @@ build/
 dist/
 wheels/
 *.egg-info
+docker-compose.yml
 
 # Virtual environments
 .venv
