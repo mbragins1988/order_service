@@ -9,7 +9,7 @@ from alembic import context
 
 # Добавляем путь к проекту
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import app.models
+
 # Импортируем Base
 from app.database import Base
 from dotenv import load_dotenv
@@ -42,6 +42,7 @@ def get_url():
     # Получаем URL из переменных окружения
     return os.getenv("DATABASE_URL")
 
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     url = get_url()
@@ -66,9 +67,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException, status, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 import os
 import uuid
+from app.kafka_service import KafkaService
 
 from app.schemas import (
     CreateOrderRequest,
@@ -17,6 +19,7 @@ from app.outbox_service import OutboxService
 API_TOKEN = os.getenv("API_TOKEN")
 SERVICE_URL = os.getenv("SERVICE_URL")
 router = APIRouter()
+kafka_service = KafkaService()
 
 
 @router.post(
@@ -26,20 +29,17 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
 )
 async def create_order(
-    order_request: CreateOrderRequest, db: Session = Depends(get_db)
+    order_request: CreateOrderRequest, db: AsyncSession = Depends(get_db)
 ):
     """Создать новый заказ."""
     print(
         f"Создание заказа для user: {order_request.user_id}, item: {order_request.item_id}"
     )
-
     # Проверка идемпотентности
-    existing_order = (
-        db.query(OrderDB)
-        .filter(OrderDB.idempotency_key == order_request.idempotency_key)
-        .first()
+    result = await db.execute(
+        select(OrderDB).where(OrderDB.idempotency_key == order_request.idempotency_key)
     )
-
+    existing_order = result.scalar_one_or_none()
     if existing_order:
         print(f"Найден существующий заказ: {existing_order.id}")
         return OrderResponse(
@@ -101,10 +101,10 @@ async def create_order(
     )
 
     db.add(order)
-    db.commit()
-    db.refresh(order)
+    await db.commit()
+    await db.refresh(order)
 
-    # # Создание платежа в Payments Service
+    # Создание платежа в Payments Service
     try:
         callback_url = f"{SERVICE_URL}/api/orders/payment-callback"
         print(f"Создание платежа для заказа {order_id}, callback_url: {callback_url}")
@@ -114,33 +114,18 @@ async def create_order(
             callback_url=callback_url,
             idempotency_key=f"payment_{order_request.idempotency_key}",
         )
-        print("Статус платежа", payment_response.get("status"))
-        if payment_response.get("status") == "succeeded":
-            order.status = OrderStatus.PAID  # ← ставим PAID сразу!
-            order.payment_id = payment_response.get("id")
-            print(f"Платеж выполнен, статус заказа: PAID")
-        else:
-            order.status = OrderStatus.CANCELLED
-            print(f"Платеж не выполнен, статус заказа: CANCELLED")
-
-        print(f"Платеж создан: {payment_response}")
+        print(f"Платеж отправлен: {payment_response}")
 
         # Сохраняем payment_id в заказ
         order.payment_id = payment_response.get("id")
-        db.commit()
-        db.refresh(order)
+        await db.commit()
+        await db.refresh(order)
 
     except Exception as e:
         print(f"Ошибка при создании платежа: {e}")
 
-        # Если платеж не создан - отменяем заказ
-        order.status = OrderStatus.CANCELLED  # ← Используем OrderStatus
-        db.commit()
-
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Не удалось выаолнить платеж: {str(e)}",
-        )
+        # Откатываем транзакцию при ошибке
+        await db.rollback()
 
     print(f"Заказ создан: {order_id}, ключ идемпотентности - {order.idempotency_key}")
 
@@ -161,11 +146,12 @@ async def create_order(
     response_model=OrderResponse,
     responses={404: {"model": ErrorResponse}},
 )
-async def get_order(order_id: str, db: Session = Depends(get_db)):
+async def get_order(order_id: str, db: AsyncSession = Depends(get_db)):
     """Получить заказ по ID."""
     print(f"Поиск заказа: {order_id}")
 
-    order = db.query(OrderDB).filter(OrderDB.id == order_id).first()
+    result = await db.execute(select(OrderDB).where(OrderDB.id == order_id))
+    order = result.scalar_one_or_none()
 
     if not order:
         raise HTTPException(
@@ -185,72 +171,76 @@ async def get_order(order_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/orders/payment-callback")
-async def payment_callback(callback_data: dict, db: Session = Depends(get_db)):
+async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_db)):
     """Обработка callback от Payments Service"""
     print(f"Получен callback: {callback_data}")
-    
+
     try:
         payment_id = callback_data.get("payment_id")
         order_id = callback_data.get("order_id")
         payment_status = callback_data.get("status")
-        
+
         if not all([payment_id, order_id, payment_status]):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Некорректные данные в callback",
             )
-        
+
         # Находим заказ
-        order = db.query(OrderDB).filter(OrderDB.id == order_id).first()
+        result = await db.execute(select(OrderDB).where(OrderDB.id == order_id))
+        order = result.scalar_one_or_none()
+
         if not order:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
-                detail="Заказ не найден"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Заказ не найден"
             )
-        
+
         # Идемпотентность - если уже обработали
         if order.status == OrderStatus.PAID and payment_status == "succeeded":
-            return {"status": "ok", "message": "Already processed"}
-        
+            return {"status": "ok", "message": "Заказ уже обработан"}
+
         if order.status == OrderStatus.CANCELLED and payment_status == "failed":
-            return {"status": "ok", "message": "Already cancelled"}
-        
+            return {"status": "ok", "message": "Отменен"}
+
         # Обработка платежа
         if payment_status == "succeeded":
             order.status = OrderStatus.PAID
-            
-            # Outbox + Kafka: публикуем событие order.paid
+
             outbox_service = OutboxService()
-            
             event_data = {
                 "order_id": order.id,
                 "item_id": order.item_id,
                 "quantity": str(order.quantity),
-                "idempotency_key": f"order_paid_{order.id}_{uuid.uuid4()}"
+                "idempotency_key": f"order_paid_{order.id}_{uuid.uuid4()}",
             }
-            
-            outbox_event = outbox_service.save_and_publish(
-                db=db,
-                event_type="order.paid",
-                event_data=event_data,
-                order_id=order.id
+            print("event_data", event_data)
+            # Сохраняем в outbox
+            outbox_event = await outbox_service.save(
+                db=db, event_type="order.paid", event_data=event_data, order_id=order.id
             )
-            
-            print(f"Событие order.paid опубликовано: {outbox_event.id}")
-            
+            print(f"Событие {outbox_event.id} добавлено в outbox")
+
         elif payment_status == "failed":
             order.status = OrderStatus.CANCELLED
             print(f"Платеж не прошел для заказа {order_id}")
-        
+
         if not order.payment_id:
             order.payment_id = payment_id
-        
-        db.commit()
-        
-        return {"status": "ok", "message": "Callback processed"}
-    
+
+        await db.commit()
+
+        return {"status": "ok", "message": "Callback обработан"}
+
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Ошибка обработки callback: {e}")
+
+        # Откатываем транзакцию при ошибке
+        try:
+            await db.rollback()
+        except:
+            pass
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка обработки: {str(e)}",

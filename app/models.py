@@ -31,8 +31,9 @@ class OrderDB(Base):
 
 class OutboxEventDB(Base):
     """Таблица для исходящих событий"""
+
     __tablename__ = "outbox_events"
-    
+
     id = Column(String, primary_key=True)
     event_type = Column(String, nullable=False)
     event_data = Column(JSON, nullable=False)  # Используем JSON тип
@@ -43,14 +44,14 @@ class OutboxEventDB(Base):
 
 class InboxEventDB(Base):
     """Таблица для входящих событий (для идемпотентности)"""
+
     __tablename__ = "inbox_events"
-    
+
     id = Column(String, primary_key=True)
     event_type = Column(String, nullable=False)
     event_data = Column(JSON, nullable=False)
     order_id = Column(String, nullable=False)
     idempotency_key = Column(String, unique=True, nullable=False)
-    status = Column(String, default="pending")  # pending, processed, failed
+    status = Column(String, default="pending")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     processed_at = Column(DateTime(timezone=True), nullable=True)
-

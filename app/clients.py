@@ -68,8 +68,8 @@ class PaymentsClient:
                     return response.json()
                 else:
                     raise Exception(
-                        f"Payment service error: {response.status_code} - {response.text}"
+                        f"Ошибка Payment service: {response.status_code} - {response.text}"
                     )
 
         except Exception as e:
-            raise Exception(f"Failed to create payment: {str(e)}")
+            raise Exception(f"Не удалось выполнить платеж: {str(e)}")
