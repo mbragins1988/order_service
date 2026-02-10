@@ -11,7 +11,7 @@ from alembic import context
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Импортируем Base
-from app.database import Base
+from app.database_sync import Base
 from dotenv import load_dotenv
 
 # Загружаем .env
