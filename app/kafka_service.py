@@ -1,9 +1,11 @@
 import json
 import os
+import sys
 import logging
 import uuid
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 from sqlalchemy import select
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.models import InboxEventDB
 
 logger = logging.getLogger(__name__)
@@ -18,15 +20,15 @@ class KafkaService:
         # Названия топиков Kafka
         self.order_events_topic = "student_system-order.events"     # Куда публикуем
         self.shipment_events_topic = "student_system-shipment.events"  # Откуда читаем
+        self.producer = None
+        self.consumer = None
     
-    async def start(self):
         """Запуск producer и consumer"""
         # Создаем Producer
         self.producer = AIOKafkaProducer(
             bootstrap_servers=self.bootstrap_servers,
             client_id="order-service"
         )
-        await self.producer.start()
         
         # Создаем Consumer
         self.consumer = AIOKafkaConsumer(
@@ -34,18 +36,9 @@ class KafkaService:
             bootstrap_servers=self.bootstrap_servers,
             group_id="order-service-group",
             auto_offset_reset="earliest",  # Читать с начала если нет offset
-            enable_auto_commit=True,       # Авто-коммит offset
+            enable_auto_commit=False,       # Авто-коммит offset
         )
-        await self.consumer.start()
         logger.info("Kafka producer и consumer запущены")
-    
-    async def stop(self):
-        """Остановка producer и consumer"""
-        if self.producer:
-            await self.producer.stop()
-        if self.consumer:
-            await self.consumer.stop()
-        logger.info("Kafka producer и consumer остановлены")
 
     async def publish_order_paid(
         self, order_id: str, item_id: str, quantity: int, idempotency_key: str
@@ -63,25 +56,26 @@ class KafkaService:
                 "quantity": str(quantity),  # Преобразуем в строку
                 "idempotency_key": idempotency_key,
             }
-
+            print("before producer")
             # Отправляем событие в Kafka
             await self.producer.send_and_wait(
                 topic=self.order_events_topic,
                 key=order_id.encode('utf-8'),
                 value=json.dumps(event).encode('utf-8'),
             )
-
+            print("Опубликовано")
             logger.info(f"Опубликовано событие order.paid для заказа {order_id}")
             return True
 
         except Exception as e:
+            print("Ошибка")
             logger.error(f"Ошибка публикации в Kafka: {e}")
             return False
 
     async def consume_shipment_events(self, db):
         """Обработка входящих событий от Shipping Service с Inbox паттерном"""
         if not self.consumer:
-            raise RuntimeError("Consumer не инициализирован. Вызовите start() сначала.")
+            raise RuntimeError("Consumer не инициализирован")
         
         try:
             # получаем сообщения
