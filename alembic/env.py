@@ -10,7 +10,7 @@ from app.database_sync import Base
 
 
 def get_url():
-    return os.getenv("DATABASE_URL")
+    return os.getenv("DATABASE_URL_ALEMBIC")
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
