@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://bragin:@localhost:5432/order_service")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Заменяем asyncpg на psycopg для синхронной работы
 if "asyncpg" in DATABASE_URL:

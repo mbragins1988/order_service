@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-DATABASE_URL = "postgresql+asyncpg://bragin:@localhost:5432/order_service"
 engine = create_async_engine(DATABASE_URL)
 
 AsyncSessionLocal = async_sessionmaker(
