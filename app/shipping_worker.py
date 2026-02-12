@@ -16,17 +16,20 @@ kafka_service = KafkaService()
 async def shipping_consumer_worker():
     """Worker для чтения событий от Shipping Service"""
     logger.info("Shipping consumer worker запущен")
-    await kafka_service.start()
-    while True:
-        try:
-            async with AsyncSessionLocal() as db:
-                await kafka_service.consume_shipment_events(db)
-
-            await asyncio.sleep(1)
-
-        except Exception as e:
-            logger.error(f"Ошибка в shipping consumer: {e}")
-            await asyncio.sleep(5)
+    
+    try:
+        # 1. Запускаем Kafka (создает consumer)
+        await kafka_service.start()
+        
+        # 2. Начинаем читать события - это бесконечный цикл!
+        async with AsyncSessionLocal() as db:
+            await kafka_service.consume_shipment_events(db)
+            
+    except Exception as e:
+        logger.error(f"Ошибка в shipping consumer: {e}")
+    finally:
+        # 3. Останавливаем Kafka при завершении
+        await kafka_service.stop()
 
 
 async def main():
