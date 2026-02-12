@@ -14,29 +14,31 @@ logger = logging.getLogger(__name__)
 
 class KafkaService:
     def __init__(self):
-        # Получаем адрес Kafka сервера из переменных окружения
         self.bootstrap_servers = os.getenv(
             "KAFKA_BOOTSTRAP_SERVERS", "kafka.kafka.svc.cluster.local:9092"
         )
-        # Названия топиков Kafka
-        self.order_events_topic = "student_system-order.events"     # Куда публикуем
-        self.shipment_events_topic = "student_system-shipment.events"  # Откуда читаем
+        self.order_events_topic = "student_system-order.events"
+        self.shipment_events_topic = "student_system-shipment.events"
         self.producer = None
         self.consumer = None
+        self._started = False
+    
+    async def ensure_started(self):
+        """Гарантирует, что Kafka запущена"""
+        if not self._started:
+            await self.start()
     
     async def start(self):
         """Запуск producer и consumer"""
-        # Создаем и запускаем Producer
         self.producer = AIOKafkaProducer(
             bootstrap_servers=self.bootstrap_servers,
-            client_id="order-service",
+            client_id=f"order-service-{os.getpid()}",  # Уникальный client_id для каждого воркера
             value_serializer=lambda v: json.dumps(v).encode('utf-8'),
             key_serializer=lambda k: k.encode('utf-8')
         )
         await self.producer.start()
-        logger.info("Kafka producer запущен")
         
-        # Создаем и запускаем Consumer
+        # Consumer только для inbox_worker/shipping_worker
         self.consumer = AIOKafkaConsumer(
             self.shipment_events_topic,
             bootstrap_servers=self.bootstrap_servers,
@@ -47,21 +49,23 @@ class KafkaService:
             key_deserializer=lambda k: k.decode('utf-8') if k else None
         )
         await self.consumer.start()
-        logger.info("Kafka consumer запущен")
+        self._started = True
+        logger.info(f"Kafka producer и consumer запущены (pid: {os.getpid()})")
     
     async def stop(self):
         """Остановка producer и consumer"""
         if self.producer:
             await self.producer.stop()
-            logger.info("Kafka producer остановлен")
         if self.consumer:
             await self.consumer.stop()
-            logger.info("Kafka consumer остановлен")
+        self._started = False
+        logger.info(f"Kafka остановлен (pid: {os.getpid()})")
 
     async def publish_order_paid(
         self, order_id: str, item_id: str, quantity: int, idempotency_key: str
     ):
         """Публикация события order.paid"""
+        await self.ensure_started()
         if not self.producer:
             raise RuntimeError("Producer не запущен. Вызовите start() сначала.")
         
@@ -90,6 +94,7 @@ class KafkaService:
 
     async def consume_shipment_events(self, db):
         """Обработка входящих событий от Shipping Service с Inbox паттерном"""
+        await self.ensure_started()
         if not self.consumer:
             raise RuntimeError("Consumer не запущен. Вызовите start() сначала.")
         

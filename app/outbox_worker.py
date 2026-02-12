@@ -16,12 +16,14 @@ from app.api import notification
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Каждый воркер создает свой экземпляр KafkaService
+kafka_service = KafkaService()
+
 
 async def outbox_worker():
     """Outbox воркер"""
     logger.info("Outbox worker запущен")
-
-    kafka_service = KafkaService()
+    await kafka_service.start()
 
     while True:
         try:

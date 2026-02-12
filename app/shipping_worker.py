@@ -10,13 +10,13 @@ from app.kafka_service import KafkaService
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+kafka_service = KafkaService()
+
 
 async def shipping_consumer_worker():
     """Worker для чтения событий от Shipping Service"""
     logger.info("Shipping consumer worker запущен")
-
-    kafka_service = KafkaService()
-
+    await kafka_service.start()
     while True:
         try:
             async with AsyncSessionLocal() as db:
