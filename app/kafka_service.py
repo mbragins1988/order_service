@@ -5,6 +5,7 @@ import logging
 import uuid
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
 from sqlalchemy import select
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.models import InboxEventDB
 
@@ -23,29 +24,46 @@ class KafkaService:
         self.producer = None
         self.consumer = None
     
+    async def start(self):
         """Запуск producer и consumer"""
-        # Создаем Producer
+        # Создаем и запускаем Producer
         self.producer = AIOKafkaProducer(
             bootstrap_servers=self.bootstrap_servers,
-            client_id="order-service"
+            client_id="order-service",
+            value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+            key_serializer=lambda k: k.encode('utf-8')
         )
+        await self.producer.start()
+        logger.info("Kafka producer запущен")
         
-        # Создаем Consumer
+        # Создаем и запускаем Consumer
         self.consumer = AIOKafkaConsumer(
             self.shipment_events_topic,
             bootstrap_servers=self.bootstrap_servers,
             group_id="order-service-group",
-            auto_offset_reset="earliest",  # Читать с начала если нет offset
-            enable_auto_commit=False,       # Авто-коммит offset
+            auto_offset_reset="earliest",
+            enable_auto_commit=False,
+            value_deserializer=lambda v: json.loads(v.decode('utf-8')),
+            key_deserializer=lambda k: k.decode('utf-8') if k else None
         )
-        logger.info("Kafka producer и consumer запущены")
+        await self.consumer.start()
+        logger.info("Kafka consumer запущен")
+    
+    async def stop(self):
+        """Остановка producer и consumer"""
+        if self.producer:
+            await self.producer.stop()
+            logger.info("Kafka producer остановлен")
+        if self.consumer:
+            await self.consumer.stop()
+            logger.info("Kafka consumer остановлен")
 
     async def publish_order_paid(
         self, order_id: str, item_id: str, quantity: int, idempotency_key: str
     ):
         """Публикация события order.paid"""
         if not self.producer:
-            raise RuntimeError("Producer не инициализирован. Вызовите start() сначала.")
+            raise RuntimeError("Producer не запущен. Вызовите start() сначала.")
         
         try:
             # Формируем событие в формате JSON
@@ -53,38 +71,34 @@ class KafkaService:
                 "event_type": "order.paid",
                 "order_id": order_id,
                 "item_id": item_id,
-                "quantity": str(quantity),  # Преобразуем в строку
+                "quantity": str(quantity),
                 "idempotency_key": idempotency_key,
             }
-            print("before producer")
+            
             # Отправляем событие в Kafka
             await self.producer.send_and_wait(
                 topic=self.order_events_topic,
-                key=order_id.encode('utf-8'),
-                value=json.dumps(event).encode('utf-8'),
+                key=order_id,
+                value=event,
             )
-            print("Опубликовано")
             logger.info(f"Опубликовано событие order.paid для заказа {order_id}")
             return True
 
         except Exception as e:
-            print("Ошибка")
             logger.error(f"Ошибка публикации в Kafka: {e}")
             return False
 
     async def consume_shipment_events(self, db):
         """Обработка входящих событий от Shipping Service с Inbox паттерном"""
         if not self.consumer:
-            raise RuntimeError("Consumer не инициализирован")
+            raise RuntimeError("Consumer не запущен. Вызовите start() сначала.")
         
         try:
-            # получаем сообщения
             async for msg in self.consumer:
                 try:
-                    # Парсим JSON сообщение
-                    event_data = json.loads(msg.value.decode('utf-8'))
-                    event_type = event_data.get('event_type')  # Тип события
-                    order_id = event_data.get('order_id')      # ID заказа
+                    event_data = msg.value  # Уже десериализовано
+                    event_type = event_data.get('event_type')
+                    order_id = event_data.get('order_id')
 
                     logger.info(f"Получено событие: {event_type} для заказа {order_id}")
 
@@ -99,32 +113,30 @@ class KafkaService:
                     )
                     existing_event = result.scalar_one_or_none()
 
-                    # Если событие уже обработано - пропускаем
                     if existing_event:
-                        logger.info(f"Событие уже обработано (идемпотентность): {idempotency_key}")
+                        logger.info(f"Событие уже обработано: {idempotency_key}")
+                        await self.consumer.commit()
                         continue
 
-                    # Сохраняем событие в таблицу inbox_events для последующей обработки
+                    # Сохраняем событие в таблицу inbox_events
                     inbox_event = InboxEventDB(
                         id=str(uuid.uuid4()),
                         event_type=event_type,
-                        event_data=json.dumps(event_data),
+                        event_data=event_data,
                         order_id=order_id,
                         idempotency_key=idempotency_key,
                         status='pending'
                     )
                     db.add(inbox_event)
                     await db.commit()
+                    
+                    # Коммитим offset после успешной обработки
+                    await self.consumer.commit()
                     logger.info(f"Событие сохранено в inbox: {inbox_event.id}")
 
-                except json.JSONDecodeError as e:
-                    logger.error(f"Ошибка декодирования JSON: {e}")
                 except Exception as e:
                     logger.error(f"Ошибка обработки сообщения: {e}")
-                    try:
-                        await db.rollback()
-                    except:
-                        pass
+                    await db.rollback()
 
         except Exception as e:
             logger.error(f"Ошибка в consumer loop: {e}")
