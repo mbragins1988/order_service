@@ -62,10 +62,17 @@ async def outbox_worker():
                                 # Уведомление об оплате
                                 notification_data = NotificationRequest(
                                     message="Ваш заказ успешно оплачен и готов к отправке",
-                                    reference_id=order.id,
-                                    idempotency_key=f"notification_paid_{order.id}_{uuid.uuid4()}"
+                                    reference_id=event_data["order_id"],  # Берем из event_data
+                                    idempotency_key=f"notification_paid_{event_data['order_id']}_{uuid.uuid4()}"
                                 )
-                                await notification(notification_data, db, user_id=order.user_id)
+                                # Получаем user_id из БД по order_id
+                                from app.models import OrderDB
+                                result = await db.execute(
+                                    select(OrderDB).where(OrderDB.id == event_data["order_id"])
+                                )
+                                order = result.scalar_one_or_none()
+                                if order:
+                                    await notification(notification_data, db, user_id=order.user_id)
                             else:
                                 logger.warning(
                                     f"Не удалось опубликовать: {event.event_type}"
