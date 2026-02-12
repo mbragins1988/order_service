@@ -2,10 +2,12 @@ import logging
 import asyncio
 import os
 import sys
-
+import uuid
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.models import InboxEventDB, OrderDB, OrderStatus
 from app.database import AsyncSessionLocal
+from app.schemas import NotificationRequest
+from app.api import notification
 from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
@@ -33,10 +35,23 @@ async def inbox_worker():
                     order.status = OrderStatus.SHIPPED
                     logger.info(f"Обработано SHIPPED: {order_id}")
                     inbox_event.status = "processed"
+                    # Уведомление об доставке
+                    notification_data = NotificationRequest(
+                        message="Ваш заказ отправлен в доставку",
+                        reference_id=order.id,
+                        idempotency_key=f"notification_paid_{order.id}_{uuid.uuid4()}"
+                    )
+                    await notification(notification_data, db, user_id=order.user_id)
                 elif event_type == "order.cancelled":
                     order.status = OrderStatus.CANCELLED
-                    logger.info(f"Обработано CANCELLED: {order_id}")
+                    logger.info(f"Обработано CANCELLED: Доставка невозможна")
                     inbox_event.status = "processed"
+                    # Уведомление об отмене
+                    notification_data = NotificationRequest(
+                        message="Ваш заказ отменен. Причина:",
+                        reference_id=order.id,
+                        idempotency_key=f"notification_paid_{order.id}_{uuid.uuid4()}"
+                    )
             await db.commit()
         except Exception as e:
             logger.error(f"Ошибка inbox worker: {e}")

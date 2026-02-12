@@ -55,3 +55,16 @@ class InboxEventDB(Base):
     status = Column(String, default="pending")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     processed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class NotificationDB(Base):
+    """Уведомление пользователю."""
+
+    __tablename__ = "notifications"
+
+    id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=False)
+    message = Column(String, nullable=False)
+    reference_id = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    idempotency_key = Column(String, unique=True, index=True)

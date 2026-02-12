@@ -73,3 +73,43 @@ class PaymentsClient:
 
         except Exception as e:
             raise Exception(f"Не удалось выполнить платеж: {str(e)}")
+
+
+class NotificationsClient:
+    """Клиент для работы с Notifications Service"""
+    
+    @staticmethod
+    async def send_notification(
+        message: str,
+        reference_id: str,
+        idempotency_key: str
+    ) -> dict:
+        """Отправить уведомление в Notifications Service"""
+        try:
+            headers = {
+                "X-API-Key": API_TOKEN,
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "message": message,
+                "reference_id": reference_id,
+                "idempotency_key": idempotency_key
+            }
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    f"{CATALOG_BASE_URL}/api/notifications",  # Тот же базовый URL
+                    json=payload,
+                    headers=headers,
+                    timeout=10.0
+                )
+                
+                if response.status_code == 201:
+                    return response.json()
+                else:
+                    print(f"Ошибка Notifications Service: {response.status_code}")
+                    return None
+                    
+        except Exception as e:
+            print(f"Ошибка отправки уведомления: {e}")
+            return None 

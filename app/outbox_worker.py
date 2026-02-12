@@ -3,12 +3,15 @@ import asyncio
 import logging
 import os
 import sys
+import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.database import AsyncSessionLocal
 from app.kafka_service import KafkaService
 from app.models import OutboxEventDB
 from sqlalchemy import select
+from app.schemas import NotificationRequest
+from app.api import notification 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,7 +26,7 @@ async def outbox_worker():
     while True:
         try:
             async with AsyncSessionLocal() as db:
-                # 1. Ищем pending события
+                # Ищем pending события
                 result = await db.execute(
                     select(OutboxEventDB)
                     .where(OutboxEventDB.status == "pending")
@@ -54,6 +57,13 @@ async def outbox_worker():
                                 logger.info(
                                     f"Опубликовано: {event.event_type} для заказа {event.order_id}"
                                 )
+                                # Уведомление об оплате
+                                notification_data = NotificationRequest(
+                                    message="Ваш заказ успешно оплачен и готов к отправке",
+                                    reference_id=order.id,
+                                    idempotency_key=f"notification_paid_{order.id}_{uuid.uuid4()}"
+                                )
+                                await notification(notification_data, db, user_id=order.user_id)
                             else:
                                 logger.warning(
                                     f"Не удалось опубликовать: {event.event_type}"

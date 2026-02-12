@@ -1,4 +1,3 @@
-# database_sync.py - для Alembic (синхронная версия)
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 import os

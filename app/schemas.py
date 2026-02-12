@@ -5,7 +5,7 @@ from app.models import OrderStatus
 
 
 class CreateOrderRequest(BaseModel):
-    """Модель для запроса на создание заказа"""
+    """Создание заказа"""
 
     user_id: str
     quantity: int
@@ -14,7 +14,7 @@ class CreateOrderRequest(BaseModel):
 
 
 class OrderResponse(BaseModel):
-    """Модель для ответа с заказом"""
+    """Ответ с заказом"""
 
     id: str
     user_id: str
@@ -30,7 +30,7 @@ class OrderResponse(BaseModel):
 
 
 class CatalogItem(BaseModel):
-    """Модель для товара из Catalog Service"""
+    """Товары из Catalog Service"""
 
     id: str
     name: str
@@ -40,13 +40,12 @@ class CatalogItem(BaseModel):
 
 
 class ErrorResponse(BaseModel):
-    """Модель для ошибки"""
 
     detail: str
 
 
 class PaymentCallbackRequest(BaseModel):
-    """Модель для callback от Payments Service"""
+    """Callback от Payments Service"""
 
     payment_id: str
     order_id: str
@@ -55,7 +54,7 @@ class PaymentCallbackRequest(BaseModel):
     error_message: Optional[str] = None
 
 
-# Модели для Kafka событий
+# Kafka события
 class OrderPaidEvent(BaseModel):
     event_type: str = "order.paid"
     order_id: str
@@ -81,8 +80,22 @@ class OrderCancelledEvent(BaseModel):
 
 
 class CreateOutboxEventRequest(BaseModel):
-    """Модель для сохранения в outbox"""
+    """Сохранения в outbox"""
 
     event_type: str
     event_data: dict
     order_id: str
+
+
+class NotificationRequest(BaseModel):
+    message: str
+    reference_id: str
+    idempotency_key: str
+
+
+class NotificationResponse(BaseModel):
+    id: str
+    user_id: str
+    message: str
+    reference_id: str
+    created_at: datetime

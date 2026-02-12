@@ -8,12 +8,14 @@ from app.kafka_service import KafkaService
 from app.schemas import (
     CreateOrderRequest,
     OrderResponse,
+    NotificationRequest,
+    NotificationResponse,
     CatalogItem,
-    ErrorResponse,
+    ErrorResponse
 )
-from app.models import OrderDB, OrderStatus
+from app.models import OrderDB, OrderStatus, NotificationDB
 from app.database import get_db
-from app.clients import CatalogClient, PaymentsClient
+from app.clients import CatalogClient, PaymentsClient, NotificationsClient
 from app.outbox_service import OutboxService
 
 API_TOKEN = os.getenv("API_TOKEN")
@@ -103,6 +105,15 @@ async def create_order(
     db.add(order)
     await db.commit()
     await db.refresh(order)
+    
+    # Создаем уведомление
+    notification_data = NotificationRequest(
+        message="Ваш заказ создан и ожидает оплаты",
+        reference_id=order_id,  # order-uuid
+        idempotency_key=f"notification_{order.idempotency_key}"  # уникальный ключ
+    )
+    user_id = order.user_id
+    await notification(notification_data, user_id, db)
 
     # Создание платежа в Payments Service
     try:
@@ -179,7 +190,6 @@ async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_d
         payment_id = callback_data.get("payment_id")
         order_id = callback_data.get("order_id")
         payment_status = callback_data.get("status")
-
         if not all([payment_id, order_id, payment_status]):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -194,18 +204,18 @@ async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_d
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Заказ не найден"
             )
-
+        print('payment_status', payment_status)
         # Идемпотентность - если уже обработали
         if order.status == OrderStatus.PAID and payment_status == "succeeded":
             return {"status": "ok", "message": "Заказ уже обработан"}
 
-        if order.status == OrderStatus.CANCELLED and payment_status == "failed":
-            return {"status": "ok", "message": "Отменен"}
+        if payment_status == "failed":
+            return {"status": "ok", "message": "Заказ отменен"}
 
         # Обработка платежа
         if payment_status == "succeeded":
             order.status = OrderStatus.PAID
-
+            # Отправляем в Outbox
             outbox_service = OutboxService()
             event_data = {
                 "order_id": order.id,
@@ -222,6 +232,13 @@ async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_d
 
         elif payment_status == "failed":
             order.status = OrderStatus.CANCELLED
+            # Уведомление об отмене
+            notification_data = NotificationRequest(
+                message="Ваш заказ отменен. Причина: платеж не прошел",
+                reference_id=order.id,
+                idempotency_key=f"notification_cancelled_{order.id}_{uuid.uuid4()}"
+            )
+            await notification(notification_data, db, user_id=order.user_id)
             print(f"Платеж не прошел для заказа {order_id}")
 
         if not order.payment_id:
@@ -245,3 +262,59 @@ async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_d
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка обработки: {str(e)}",
         )
+
+
+@router.post("/notifications")
+async def notification(notifications: NotificationRequest,
+                       user_id: str,
+                       db: AsyncSession = Depends(get_db)):
+    """Уведомление пользователю."""
+
+    message = notifications.message
+    reference_id = notifications.reference_id  # order-uuid
+    idempotency_key = notifications.idempotency_key
+    if not all([message, reference_id, idempotency_key]):
+        return HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Некорректные данные",
+        )
+    # Проверка идемпотентности
+    result = await db.execute(
+        select(NotificationDB).where(NotificationDB.idempotency_key == idempotency_key)
+    )
+    existing_order = result.scalar_one_or_none()
+    if existing_order:
+        return HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Сообщение уже отправлялось",
+        )
+    note = NotificationDB(
+        id=str(uuid.uuid4()),
+        user_id=user_id,
+        message=message,
+        reference_id=reference_id,
+        idempotency_key=idempotency_key
+    )
+    # Добавляем в сессию
+    db.add(note)
+    # Сохраняем в БД (commit)
+    await db.commit()
+    # Обновляем объект (получаем сгенерированные поля)
+    await db.refresh(note)
+    try:
+        await NotificationsClient.send_notification(
+            message=message,
+            reference_id=reference_id,
+            idempotency_key=idempotency_key
+        )
+    except Exception as e:
+        print(f"Не удалось отправить уведомление в Capashino: {e}")
+        # Продолжаем выполнение - уведомление сохранили в БД
+    
+    return NotificationResponse(
+        id=note.id,
+        user_id=note.user_id,
+        message=note.message,
+        reference_id=note.reference_id,
+        created_at=note.created_at
+    )
