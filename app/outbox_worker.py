@@ -23,7 +23,7 @@ kafka_service = KafkaService()
 async def outbox_worker():
     """Outbox воркер"""
     logger.info("Outbox worker запущен")
-    await kafka_service.start()
+    await kafka_service.producer_start()
 
     while True:
         try:

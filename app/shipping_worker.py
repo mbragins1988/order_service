@@ -19,7 +19,7 @@ async def shipping_consumer_worker():
     
     try:
         # 1. Запускаем Kafka (создает consumer)
-        await kafka_service.start()
+        await kafka_service.consumer_start()
         
         # 2. Начинаем читать события - это бесконечный цикл!
         async with AsyncSessionLocal() as db:

@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+export PYTHONUNBUFFERED=1 
 echo "Applying database migrations..."
 alembic upgrade head
 

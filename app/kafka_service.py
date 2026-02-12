@@ -14,43 +14,46 @@ logger = logging.getLogger(__name__)
 
 class KafkaService:
     def __init__(self):
-        self.bootstrap_servers = os.getenv(
-            "KAFKA_BOOTSTRAP_SERVERS", "kafka.kafka.svc.cluster.local:9092"
-        )
+        self.bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
         self.order_events_topic = "student_system-order.events"
         self.shipment_events_topic = "student_system-shipment.events"
-        self.producer = None
-        self.consumer = None
-        self._started = False
+        # self.producer = None
+        # self.consumer = None
+        # self._started = False
     
-    async def ensure_started(self):
-        """Гарантирует, что Kafka запущена"""
-        if not self._started:
-            await self.start()
+    # async def ensure_started(self):
+    #     """Гарантирует, что Kafka запущена"""
+    #     if not self._started:
+    #         await self.start()
     
-    async def start(self):
-        """Запуск producer и consumer"""
+    async def producer_start(self):
+        """Запуск producer"""
         self.producer = AIOKafkaProducer(
             bootstrap_servers=self.bootstrap_servers,
-            client_id=f"order-service-{os.getpid()}",  # Уникальный client_id для каждого воркера
-            value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-            key_serializer=lambda k: k.encode('utf-8')
+            value_serializer=lambda v: json.dumps(v).encode('utf-8')
+            # client_id=f"order-service-{os.getpid()}",  # Уникальный client_id для каждого воркера
+            # value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+            # key_serializer=lambda k: k.encode('utf-8')
         )
         await self.producer.start()
-        
-        # Consumer только для inbox_worker/shipping_worker
+        logger.info(f"Kafka producer запущен (pid: {os.getpid()})")
+
+    async def consumer_start(self):
+        """Запуск consumer"""
+
         self.consumer = AIOKafkaConsumer(
             self.shipment_events_topic,
             bootstrap_servers=self.bootstrap_servers,
-            group_id="order-service-group",
-            auto_offset_reset="earliest",
-            enable_auto_commit=False,
-            value_deserializer=lambda v: json.loads(v.decode('utf-8')),
-            key_deserializer=lambda k: k.decode('utf-8') if k else None
+            value_deserializer=lambda v: json.loads(v.decode('utf-8'))
+            # group_id="order-service-group",
+            # auto_offset_reset="earliest",
+            # enable_auto_commit=False,
+            # value_deserializer=lambda v: json.loads(v.decode('utf-8')),
+            # key_deserializer=lambda k: k.decode('utf-8') if k else None
         )
         await self.consumer.start()
         self._started = True
-        logger.info(f"Kafka producer и consumer запущены (pid: {os.getpid()})")
+        logger.info(f"Kafka consumer запущен (pid: {os.getpid()})")
     
     async def stop(self):
         """Остановка producer и consumer"""
@@ -64,10 +67,6 @@ class KafkaService:
     async def publish_order_paid(
         self, order_id: str, item_id: str, quantity: int, idempotency_key: str
     ):
-        """Публикация события order.paid"""
-        await self.ensure_started()
-        if not self.producer:
-            raise RuntimeError("Producer не запущен. Вызовите start() сначала.")
         
         try:
             # Формируем событие в формате JSON
@@ -94,10 +93,7 @@ class KafkaService:
 
     async def consume_shipment_events(self, db):
         """Обработка входящих событий от Shipping Service с Inbox паттерном"""
-        await self.ensure_started()
-        if not self.consumer:
-            raise RuntimeError("Consumer не запущен. Вызовите start() сначала.")
-        
+
         try:
             async for msg in self.consumer:
                 try:
