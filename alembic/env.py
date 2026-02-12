@@ -6,7 +6,9 @@ from alembic import context
 # Добавляем путь к проекту
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.models import *
-from app.database_sync import Base
+from app.database_not_sync import Base
+from dotenv import load_dotenv
+load_dotenv()
 
 
 def get_url():
