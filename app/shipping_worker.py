@@ -27,9 +27,6 @@ async def shipping_consumer_worker():
             
     except Exception as e:
         logger.error(f"Ошибка в shipping consumer: {e}")
-    finally:
-        # 3. Останавливаем Kafka при завершении
-        await kafka_service.stop()
 
 
 async def main():

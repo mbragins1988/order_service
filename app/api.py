@@ -248,8 +248,6 @@ async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_d
 
         return {"status": "ok", "message": "Callback обработан"}
 
-    except HTTPException:
-        raise
     except Exception as e:
         print(f"Ошибка обработки callback: {e}")
 
