@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("POSTGRES_CONNECTION_STRING").replace("postgresql://", "postgresql+asyncpg://")
 engine = create_async_engine(DATABASE_URL)
 
 AsyncSessionLocal = async_sessionmaker(

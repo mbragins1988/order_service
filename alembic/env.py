@@ -6,13 +6,13 @@ from alembic import context
 # Добавляем путь к проекту
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.models import *
-from app.database_not_sync import Base
+from app.database_sync import Base
 from dotenv import load_dotenv
 load_dotenv()
 
 
 def get_url():
-    return os.getenv("DATABASE_URL_ALEMBIC")
+    return os.getenv("POSTGRES_CONNECTION_STRING")
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
