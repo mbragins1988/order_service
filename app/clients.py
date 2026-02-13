@@ -98,7 +98,7 @@ class NotificationsClient:
             
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{CATALOG_BASE_URL}/api/notifications",  # Тот же базовый URL
+                    f"{CATALOG_BASE_URL}/api/notifications",
                     json=payload,
                     headers=headers,
                     timeout=10.0
