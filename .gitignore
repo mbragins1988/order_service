@@ -6,7 +6,7 @@ dist/
 wheels/
 kube/
 *.egg-info
-alembic.ini
+# alembic.ini
 
 # Virtual environments
 .venv

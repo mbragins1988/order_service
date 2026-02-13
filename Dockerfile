@@ -16,7 +16,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv pip install --system --no-cache -r pyproject.toml
 
 # Копируем Alembic миграции
-# COPY alembic.ini .
+COPY alembic.ini .
 COPY alembic/ ./alembic/
 
 # Копируем entrypoint
