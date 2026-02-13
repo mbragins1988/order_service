@@ -25,10 +25,10 @@ async def shipping_consumer_worker():
     logger.info("Shipping consumer worker запущен")
     
     try:
-        # 1. Запускаем Kafka (создает consumer)
+        # Запускаем Kafka (создает consumer)
         await kafka_service.consumer_start()
         
-        # 2. Начинаем читать события - это бесконечный цикл!
+        # Начинаем читать события - это бесконечный цикл!
         async with AsyncSessionLocal() as db:
             await kafka_service.consume_shipment_events(db)
             
