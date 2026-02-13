@@ -17,23 +17,12 @@ class KafkaService:
         self.bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
         self.order_events_topic = "student_system-order.events"
         self.shipment_events_topic = "student_system-shipment.events"
-        # self.producer = None
-        # self.consumer = None
-        # self._started = False
-    
-    # async def ensure_started(self):
-    #     """Гарантирует, что Kafka запущена"""
-    #     if not self._started:
-    #         await self.start()
     
     async def producer_start(self):
         """Запуск producer"""
         self.producer = AIOKafkaProducer(
             bootstrap_servers=self.bootstrap_servers,
             value_serializer=lambda v: json.dumps(v).encode('utf-8')
-            # client_id=f"order-service-{os.getpid()}",  # Уникальный client_id для каждого воркера
-            # value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-            # key_serializer=lambda k: k.encode('utf-8')
         )
         await self.producer.start()
         logger.info(f"Kafka producer запущен (pid: {os.getpid()})")
@@ -45,11 +34,6 @@ class KafkaService:
             self.shipment_events_topic,
             bootstrap_servers=self.bootstrap_servers,
             value_deserializer=lambda v: json.loads(v.decode('utf-8'))
-            # group_id="order-service-group",
-            # auto_offset_reset="earliest",
-            # enable_auto_commit=False,
-            # value_deserializer=lambda v: json.loads(v.decode('utf-8')),
-            # key_deserializer=lambda k: k.decode('utf-8') if k else None
         )
         await self.consumer.start()
         self._started = True
@@ -67,7 +51,6 @@ class KafkaService:
     async def publish_order_paid(
         self, order_id: str, item_id: str, quantity: int, idempotency_key: str
     ):
-        
         try:
             # Формируем событие в формате JSON
             event = {

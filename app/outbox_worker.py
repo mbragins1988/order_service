@@ -11,10 +11,19 @@ from app.kafka_service import KafkaService
 from app.models import OutboxEventDB
 from sqlalchemy import select
 from app.schemas import NotificationRequest
-from app.api import notification 
+from app.api import notification
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Каждый воркер создает свой экземпляр KafkaService
 kafka_service = KafkaService()
