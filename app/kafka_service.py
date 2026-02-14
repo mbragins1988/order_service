@@ -60,6 +60,14 @@ class KafkaService:
                 "quantity": str(quantity),
                 "idempotency_key": idempotency_key,
             }
+
+            # ✅ ПОДГОТАВЛИВАЕМ БАЙТЫ ЯВНО
+            key_bytes = order_id.encode('utf-8')
+            value_bytes = json.dumps(event).encode('utf-8')
+
+            # 🟢 ОТЛАДКА
+            print(f"DEBUG - key type: {type(key_bytes)}, value type: {type(value_bytes)}")
+            print(f"DEBUG - key: {key_bytes[:20]}, value: {value_bytes[:50]}")
             
             # Отправляем событие в Kafka
             await self.producer.send_and_wait(
