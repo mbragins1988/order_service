@@ -80,8 +80,9 @@ async def outbox_worker():
                                     select(OrderDB).where(OrderDB.id == event_data["order_id"])
                                 )
                                 order = result.scalar_one_or_none()
+                                user_id = order.user_id
                                 if order:
-                                    await notification(notification_data, db, user_id=order.user_id)
+                                    await notification(notification_data, user_id, db)
                             else:
                                 logger.warning(
                                     f"Не удалось опубликовать: {event.event_type}"
