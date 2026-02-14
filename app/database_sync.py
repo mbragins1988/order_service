@@ -8,8 +8,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from app.models import OrderDB, OutboxEventDB, InboxEventDB, NotificationDB
-
-engine = create_engine(os.getenv("POSTGRES_CONNECTION_STRING"))
+DATABASE_URL = os.getenv("POSTGRES_CONNECTION_STRING").replace("postgres://", "postgresql://")
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def get_db_sync():
     db = SessionLocal()
