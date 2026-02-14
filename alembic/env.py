@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from alembic import context
 # Добавляем путь к проекту
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from app.models import *
+# from app.models import OrderDB, OutboxEventDB, InboxEventDB, NotificationDB
 from app.database_sync import Base
 from dotenv import load_dotenv
 load_dotenv()

@@ -1,8 +1,8 @@
 """Create orders table
 
-Revision ID: 0059645c151f
-Revises: 
-Create Date: 2026-02-11 10:59:02.192883
+Revision ID: be8edcbbc16f
+Revises: d681f98805da
+Create Date: 2026-02-14 01:36:46.874381
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '0059645c151f'
-down_revision: Union[str, Sequence[str], None] = None
+revision: str = 'be8edcbbc16f'
+down_revision: Union[str, Sequence[str], None] = 'd681f98805da'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -33,6 +33,16 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('idempotency_key')
     )
+    op.create_table('notifications',
+    sa.Column('id', sa.String(), nullable=False),
+    sa.Column('user_id', sa.String(), nullable=False),
+    sa.Column('message', sa.String(), nullable=False),
+    sa.Column('reference_id', sa.String(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
+    sa.Column('idempotency_key', sa.String(), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_notifications_idempotency_key'), 'notifications', ['idempotency_key'], unique=True)
     op.create_table('orders',
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('user_id', sa.String(), nullable=False),
@@ -66,5 +76,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_orders_idempotency_key'), table_name='orders')
     op.drop_index(op.f('ix_orders_id'), table_name='orders')
     op.drop_table('orders')
+    op.drop_index(op.f('ix_notifications_idempotency_key'), table_name='notifications')
+    op.drop_table('notifications')
     op.drop_table('inbox_events')
     # ### end Alembic commands ###
