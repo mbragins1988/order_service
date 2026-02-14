@@ -72,8 +72,8 @@ class KafkaService:
             # Отправляем событие в Kafka
             await self.producer.send_and_wait(
                 topic=self.order_events_topic,
-                key=order_id,
-                value=event,
+                key=key_bytes,
+                value=value_bytes,
             )
             logger.info(f"Опубликовано событие order.paid для заказа {order_id}")
             return True
