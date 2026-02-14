@@ -22,7 +22,7 @@ class KafkaService:
         """Запуск producer"""
         self.producer = AIOKafkaProducer(
             bootstrap_servers=self.bootstrap_servers,
-            value_serializer=lambda v: json.dumps(v).encode('utf-8')
+            # value_serializer=lambda v: json.dumps(v).encode('utf-8')
         )
         await self.producer.start()
         logger.info(f"Kafka producer запущен (pid: {os.getpid()})")
