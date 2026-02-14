@@ -13,6 +13,7 @@ load_dotenv()
 
 def get_url():
     return os.getenv("POSTGRES_CONNECTION_STRING")
+print('POSTGRES_CONNECTION_STRING -', get_url())
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
