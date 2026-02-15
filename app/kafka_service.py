@@ -57,7 +57,7 @@ class KafkaService:
                 "event_type": "order.paid",
                 "order_id": order_id,
                 "item_id": item_id,
-                "quantity": str(quantity),
+                "quantity": int(quantity),
                 "idempotency_key": idempotency_key,
             }
 

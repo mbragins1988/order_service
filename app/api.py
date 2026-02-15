@@ -223,7 +223,7 @@ async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_d
             event_data = {
                 "order_id": order.id,
                 "item_id": order.item_id,
-                "quantity": str(order.quantity),
+                "quantity": int(order.quantity),
                 "idempotency_key": f"order_paid_{order.id}_{uuid.uuid4()}",
             }
             logger.info("event_data", event_data)
