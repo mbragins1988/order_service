@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import os
 import uuid
+import logging
 from app.kafka_service import KafkaService
 
 from app.schemas import (
@@ -17,6 +18,8 @@ from app.models import OrderDB, OrderStatus, NotificationDB
 from app.database import get_db
 from app.clients import CatalogClient, PaymentsClient, NotificationsClient
 from app.outbox_service import OutboxService
+
+logger = logging.getLogger(__name__)
 
 API_TOKEN = os.getenv("API_TOKEN")
 SERVICE_URL = os.getenv("SERVICE_URL")
@@ -34,7 +37,7 @@ async def create_order(
     order_request: CreateOrderRequest, db: AsyncSession = Depends(get_db)
 ):
     """Создать новый заказ."""
-    print(
+    logger.info(
         f"Создание заказа для user: {order_request.user_id}, item: {order_request.item_id}"
     )
     # Проверка идемпотентности
@@ -43,7 +46,7 @@ async def create_order(
     )
     existing_order = result.scalar_one_or_none()
     if existing_order:
-        print(f"Найден существующий заказ: {existing_order.id}")
+        logger.info(f"Найден существующий заказ: {existing_order.id}")
         return OrderResponse(
             id=existing_order.id,
             user_id=existing_order.user_id,
@@ -56,7 +59,7 @@ async def create_order(
         )
 
     # Проверка товара в Catalog Service
-    print(f"Проверка товара {order_request.item_id} в Catalog Service")
+    logger.info(f"Проверка товара {order_request.item_id} в Catalog Service")
     catalog_data = await CatalogClient.get_item(order_request.item_id)
 
     if not catalog_data:
@@ -74,7 +77,7 @@ async def create_order(
             detail=f"Недостаточное количество товара. Доступно для заказа: {catalog_item.available_qty}",
         )
 
-    print(
+    logger.info(
         f"Товар доступен: {catalog_item.name}, цена: {catalog_item.price}, в наличии: {catalog_item.available_qty}"
     )
 
@@ -90,7 +93,7 @@ async def create_order(
 
     # Создание заказа в БД
     order_id = str(uuid.uuid4())
-    print(f"Создание заказа {order_id} в БД")
+    logger.info(f"Создание заказа {order_id} в БД")
 
     order = OrderDB(
         id=order_id,
@@ -118,14 +121,14 @@ async def create_order(
     # Создание платежа в Payments Service
     try:
         callback_url = f"{SERVICE_URL}/api/orders/payment-callback"
-        print(f"Создание платежа для заказа {order_id}, callback_url: {callback_url}")
+        logger.info(f"Создание платежа для заказа {order_id}, callback_url: {callback_url}")
         payment_response = await PaymentsClient.create_payment(
             order_id=order_id,
             amount=order_amount,
             callback_url=callback_url,
             idempotency_key=f"payment_{order_request.idempotency_key}",
         )
-        print(f"Платеж отправлен: {payment_response}")
+        logger.info(f"Платеж отправлен: {payment_response}")
 
         # Сохраняем payment_id в заказ
         order.payment_id = payment_response.get("id")
@@ -133,12 +136,12 @@ async def create_order(
         await db.refresh(order)
 
     except Exception as e:
-        print(f"Ошибка при создании платежа: {e}")
+        logger.info(f"Ошибка при создании платежа: {e}")
 
         # Откатываем транзакцию при ошибке
         await db.rollback()
 
-    print(f"Заказ создан: {order_id}, ключ идемпотентности - {order.idempotency_key}")
+    logger.info(f"Заказ создан: {order_id}, ключ идемпотентности - {order.idempotency_key}")
 
     return OrderResponse(
         id=order.id,
@@ -159,7 +162,7 @@ async def create_order(
 )
 async def get_order(order_id: str, db: AsyncSession = Depends(get_db)):
     """Получить заказ по ID."""
-    print(f"Поиск заказа: {order_id}")
+    logger.info(f"Поиск заказа: {order_id}")
 
     result = await db.execute(select(OrderDB).where(OrderDB.id == order_id))
     order = result.scalar_one_or_none()
@@ -184,7 +187,7 @@ async def get_order(order_id: str, db: AsyncSession = Depends(get_db)):
 @router.post("/orders/payment-callback")
 async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_db)):
     """Обработка callback от Payments Service"""
-    print(f"Получен callback: {callback_data}")
+    logger.info(f"Получен callback: {callback_data}")
 
     try:
         payment_id = callback_data.get("payment_id")
@@ -204,7 +207,7 @@ async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_d
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Заказ не найден"
             )
-        print('payment_status', payment_status)
+        logger.info('payment_status', payment_status)
         # Идемпотентность - если уже обработали
         if order.status == OrderStatus.PAID and payment_status == "succeeded":
             return {"status": "ok", "message": "Заказ уже обработан"}
@@ -223,12 +226,12 @@ async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_d
                 "quantity": str(order.quantity),
                 "idempotency_key": f"order_paid_{order.id}_{uuid.uuid4()}",
             }
-            print("event_data", event_data)
+            logger.info("event_data", event_data)
             # Сохраняем в outbox
             outbox_event = await outbox_service.save(
                 db=db, event_type="order.paid", event_data=event_data, order_id=order.id
             )
-            print(f"Событие {outbox_event.id} добавлено в outbox")
+            logger.info(f"Событие {outbox_event.id} добавлено в outbox")
 
         elif payment_status == "failed":
             order.status = OrderStatus.CANCELLED
@@ -239,7 +242,7 @@ async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_d
                 idempotency_key=f"notification_cancelled_{order.id}_{uuid.uuid4()}"
             )
             await notification(notification_data, db, user_id=order.user_id)
-            print(f"Платеж не прошел для заказа {order_id}")
+            logger.info(f"Платеж не прошел для заказа {order_id}")
 
         if not order.payment_id:
             order.payment_id = payment_id
@@ -249,7 +252,7 @@ async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_d
         return {"status": "ok", "message": "Callback обработан"}
 
     except Exception as e:
-        print(f"Ошибка обработки callback: {e}")
+        logger.info(f"Ошибка обработки callback: {e}")
 
         # Откатываем транзакцию при ошибке
         try:
@@ -306,7 +309,7 @@ async def notification(notifications: NotificationRequest,
             idempotency_key=idempotency_key
         )
     except Exception as e:
-        print(f"Не удалось отправить уведомление в Capashino: {e}")
+        logger.info(f"Не удалось отправить уведомление в Capashino: {e}")
         # Продолжаем выполнение - уведомление сохранили в БД
     
     return NotificationResponse(

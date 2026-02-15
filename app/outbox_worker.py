@@ -62,6 +62,7 @@ async def outbox_worker():
                                 quantity=int(event_data["quantity"]),
                                 idempotency_key=event_data["idempotency_key"],
                             )
+                            logger.info("Сообщения 'pending' из outbox отправлены")
 
                             if success:
                                 event.status = "published"
@@ -74,7 +75,7 @@ async def outbox_worker():
                                     reference_id=event_data["order_id"],  # Берем из event_data
                                     idempotency_key=f"notification_paid_{event_data['order_id']}_{uuid.uuid4()}"
                                 )
-                                print('Ваш заказ успешно оплачен и готов к отправке')
+                                logger.info('Ваш заказ успешно оплачен и готов к отправке')
                                 # Получаем user_id из БД по order_id
                                 from app.models import OrderDB
                                 result = await db.execute(

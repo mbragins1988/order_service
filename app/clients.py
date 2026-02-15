@@ -2,6 +2,9 @@ import httpx
 import os
 from typing import Dict, Any
 from fastapi import HTTPException, status
+import logging
+
+logger = logging.getLogger(__name__)
 
 CATALOG_BASE_URL = os.getenv("CATALOG_BASE_URL")
 API_TOKEN = os.getenv("API_TOKEN")
@@ -16,13 +19,13 @@ class CatalogClient:
         try:
             headers = {"X-API-Key": API_TOKEN}
             async with httpx.AsyncClient() as client:
-                print("URL", f"{CATALOG_BASE_URL}/api/catalog/items/{item_id}")
+                logger.info("URL", f"{CATALOG_BASE_URL}/api/catalog/items/{item_id}")
                 response = await client.get(
                     f"{CATALOG_BASE_URL}/api/catalog/items/{item_id}",
                     headers=headers,
                     timeout=10.0,
                 )
-                print("RESPONSE", response)
+                logger.info("RESPONSE", response)
                 if response.status_code == 200:
                     return response.json()
                 elif response.status_code == 404:
@@ -62,7 +65,7 @@ class PaymentsClient:
                     headers=headers,
                     timeout=30.0,
                 )
-                print("RESPONSE", response, payload)
+                logger.info("RESPONSE", response, payload)
 
                 if response.status_code == 201:
                     return response.json()
@@ -107,9 +110,9 @@ class NotificationsClient:
                 if response.status_code == 201:
                     return response.json()
                 else:
-                    print(f"Ошибка Notifications Service: {response.status_code}")
+                    logger.info(f"Ошибка Notifications Service: {response.status_code}")
                     return None
                     
         except Exception as e:
-            print(f"Ошибка отправки уведомления: {e}")
-            return None 
+            logger.info(f"Ошибка отправки уведомления: {e}")
+            return None

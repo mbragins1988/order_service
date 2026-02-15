@@ -59,7 +59,7 @@ class OrderPaidEvent(BaseModel):
     event_type: str = "order.paid"
     order_id: str
     item_id: str
-    quantity: str
+    quantity: int
     idempotency_key: str
 
 
