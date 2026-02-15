@@ -44,7 +44,7 @@ async def inbox_worker():
                         idempotency_key=f"notification_paid_{order.id}_{uuid.uuid4()}"
                     )
                     user_id = order.user_id
-                    # await notification(notification_data, user_id, db)
+                    await notification(notification_data, user_id, db)
                 elif event_type == "order.cancelled":
                     order.status = OrderStatus.CANCELLED
                     logger.info("Обработано CANCELLED: Доставка невозможна")

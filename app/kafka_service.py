@@ -84,7 +84,7 @@ class KafkaService:
         try:
             async for msg in self.consumer:
                 try:
-                    event_data = msg.value  # Уже десериализовано
+                    event_data = msg.value
                     event_type = event_data.get('event_type')
                     order_id = event_data.get('order_id')
 
