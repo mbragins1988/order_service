@@ -33,6 +33,7 @@ class KafkaService:
         self.consumer = AIOKafkaConsumer(
             self.shipment_events_topic,
             bootstrap_servers=self.bootstrap_servers,
+            group_id="order-service-group",
             value_deserializer=lambda v: json.loads(v.decode('utf-8'))
         )
         await self.consumer.start()
