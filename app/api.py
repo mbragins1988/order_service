@@ -132,8 +132,9 @@ async def create_order(
     notification_sent = False
 
     while not notification_sent and retry_count < max_retries:
-
+        
         result = await notification(notification_data, user_id, db)
+        logger.warning("result_notification - ", result) 
         logger.info(f"RESULT - {result}, Попытка {retry_count + 1}")
         if result:
             notification_sent = True

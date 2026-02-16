@@ -56,13 +56,14 @@ async def inbox_worker():  # Убрал @staticmethod, он здесь не ну
                         )
                         
                         success_notification_shipped = await notification(notification_data, order.user_id, db)
+                        logger.warning("result_notification - ", success_notification_shipped) 
                         if success_notification_shipped:
                             order.status = OrderStatus.SHIPPED
                             inbox_event.status = "processed"
                             inbox_event.processed_at = datetime.now(timezone.utc)
                             logger.info("Обработано SHIPPED, уведомление отправлено")
                         else:
-                            logger.warning(f"Уведомление не отправлено, событие останется pending")
+                            logger.warning("Уведомление не отправлено, событие останется pending")
                     
                     elif event_type == "order.cancelled":
                         reason = inbox_event.event_data.get("reason", "неизвестная причина")

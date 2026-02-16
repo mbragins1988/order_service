@@ -120,8 +120,8 @@ class NotificationsClient:
                     return response.json()
                 else:
                     logger.info(f"Ошибка Notifications Service: {response.status_code}")
-                    return None
+                    return False
                     
         except Exception as e:
             logger.info(f"Ошибка отправки уведомления: {e}")
-            return None
+            return False
