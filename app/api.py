@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -121,12 +122,41 @@ async def create_order(
     # Создаем уведомление
     notification_data = NotificationRequest(
         message="Ваш заказ создан и ожидает оплаты",
-        reference_id=order_id,  # order-uuid
-        idempotency_key=f"notification_{order.idempotency_key}"  # уникальный ключ
+        reference_id=order_id,
+        idempotency_key=f"notification_{order.idempotency_key}"
     )
+
     user_id = order.user_id
-    await notification(notification_data, user_id, db)
-    logger.info("Отправлено уведомление - 'Ваш заказ создан и ожидает оплаты'")
+    max_retries = 5
+    retry_count = 0
+    notification_sent = False
+
+    # Блокирующий цикл - не выйдем, пока не отправится
+    while not notification_sent and retry_count < max_retries:
+        try:
+            result = await notification(notification_data, user_id, db)
+
+            if result:
+                notification_sent = True
+                logger.info(f"Уведомление о создании заказа отправлено (попытка {retry_count + 1})")
+            else:
+                retry_count += 1
+                if retry_count < max_retries:
+                    logger.warning(f"Уведомление не отправилось {retry_count}")
+                    await asyncio.sleep(1)
+                else:
+                    logger.error(f"Не удалось отправить уведомление после {max_retries} попыток")
+                    raise Exception(f"Ошибка отправки уведомления о создании заказа после {max_retries} попыток")
+
+        except Exception as e:
+            retry_count += 1
+            logger.error(f"Ошибка при отправке: {e}")
+            if retry_count >= max_retries:
+                raise Exception(f"Ошибка отправки уведомления: {e}")
+            await asyncio.sleep(1)
+
+    # Код дальше выполнится ТОЛЬКО если уведомление отправлено!
+    logger.info("Продолжаем выполнение - уведомление гарантированно отправлено")
 
     # Создание платежа в Payments Service
     try:
