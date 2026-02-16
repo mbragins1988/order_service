@@ -60,9 +60,9 @@ async def inbox_worker():  # Убрал @staticmethod, он здесь не ну
                             order.status = OrderStatus.SHIPPED
                             inbox_event.status = "processed"
                             inbox_event.processed_at = datetime.now(timezone.utc)
-                            logger.info(f"Обработано SHIPPED: {order_id}, уведомление отправлено")
+                            logger.info("Обработано SHIPPED, уведомление отправлено")
                         else:
-                            logger.warning(f"Уведомление не отправлено для {order_id}, событие останется pending")
+                            logger.warning(f"Уведомление не отправлено, событие останется pending")
                     
                     elif event_type == "order.cancelled":
                         reason = inbox_event.event_data.get("reason", "неизвестная причина")
@@ -82,7 +82,7 @@ async def inbox_worker():  # Убрал @staticmethod, он здесь не ну
                             inbox_event.processed_at = datetime.now(timezone.utc)
                             logger.info(f"Обработано CANCELLED: {order_id}, уведомление отправлено")
                         else:
-                            logger.warning(f"Уведомление не отправлено для {order_id}, событие останется pending")
+                            logger.warning(f"Уведомление не отправлено, событие останется pending")
                     
                     await db.commit()
                     

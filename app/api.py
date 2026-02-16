@@ -131,32 +131,19 @@ async def create_order(
     retry_count = 0
     notification_sent = False
 
-    # Блокирующий цикл - не выйдем, пока не отправится
     while not notification_sent and retry_count < max_retries:
-        try:
-            result = await notification(notification_data, user_id, db)
 
-            if result:
-                notification_sent = True
-                logger.info(f"Уведомление о создании заказа отправлено (попытка {retry_count + 1})")
-            else:
-                retry_count += 1
-                if retry_count < max_retries:
-                    logger.warning(f"Уведомление не отправилось {retry_count}")
-                    await asyncio.sleep(1)
-                else:
-                    logger.error(f"Не удалось отправить уведомление после {max_retries} попыток")
-                    raise Exception(f"Ошибка отправки уведомления о создании заказа после {max_retries} попыток")
-
-        except Exception as e:
+        result = await notification(notification_data, user_id, db)
+        if result:
+            notification_sent = True
+            logger.info(f"Уведомление о создании заказа отправлено (попытка {retry_count + 1})")
+        else:
             retry_count += 1
-            logger.error(f"Ошибка при отправке: {e}")
-            if retry_count >= max_retries:
-                raise Exception(f"Ошибка отправки уведомления: {e}")
-            await asyncio.sleep(1)
-
-    # Код дальше выполнится ТОЛЬКО если уведомление отправлено!
-    logger.info("Продолжаем выполнение - уведомление гарантированно отправлено")
+            if retry_count < max_retries:
+                logger.warning(f"Уведомление не отправилось {retry_count}")
+                await asyncio.sleep(1)
+            else:
+                logger.error(f"Не удалось отправить уведомление после {max_retries} попыток")
 
     # Создание платежа в Payments Service
     try:
