@@ -328,4 +328,4 @@ async def notification(notifications: NotificationRequest,
     except Exception as e:
         logger.info(f"Не удалось отправить уведомление в Capashino: {e}")
         # Продолжаем выполнение - уведомление сохранили в БД
-        return None
+        return False

@@ -81,8 +81,7 @@ async def outbox_worker():
                             )
                             # Вызываем notification и проверяем результат
                             notification_result = await notification(notification_data, order.user_id, db)
-                            # Проверяем, что notification_result не None (успех)
-                            success_notification = notification_result is not None
+                            logger.info(f'notification_result = {notification_result}')
                             logger.info("Попытка отправки сообщения пользователю")
 
                             # ТОЛЬКО если оба успешны - меняем статус

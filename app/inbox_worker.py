@@ -55,10 +55,8 @@ async def inbox_worker():  # Убрал @staticmethod, он здесь не ну
                             idempotency_key=f"notification_shipped_{order.id}_{uuid.uuid4()}"
                         )
                         
-                        notification_result = await notification(notification_data, order.user_id, db)
-                        success_notification = notification_result is not None
-                        
-                        if success_notification:
+                        success_notification_shipped = await notification(notification_data, order.user_id, db)
+                        if success_notification_shipped and notification_data:
                             order.status = OrderStatus.SHIPPED
                             inbox_event.status = "processed"
                             inbox_event.processed_at = datetime.now(timezone.utc)
@@ -76,10 +74,9 @@ async def inbox_worker():  # Убрал @staticmethod, он здесь не ну
                             idempotency_key=f"notification_cancelled_{order.id}_{uuid.uuid4()}"
                         )
                         
-                        notification_result = await notification(notification_data, order.user_id, db)
-                        success_notification = notification_result is not None
+                        success_notification_canceled = await notification(notification_data, order.user_id, db)
                         
-                        if success_notification:
+                        if success_notification_canceled and notification_data:
                             order.status = OrderStatus.CANCELLED
                             inbox_event.status = "processed"
                             inbox_event.processed_at = datetime.now(timezone.utc)
