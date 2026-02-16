@@ -125,9 +125,8 @@ async def create_order(
         idempotency_key=f"notification_{order.idempotency_key}"  # уникальный ключ
     )
     user_id = order.user_id
-    res = await notification(notification_data, user_id, db)
+    await notification(notification_data, user_id, db)
     logger.info("Отправлено уведомление - 'Ваш заказ создан и ожидает оплаты'")
-    print("Отправлено уведомление - 'Ваш заказ создан и ожидает оплаты'", res)
 
     # Создание платежа в Payments Service
     try:
@@ -218,7 +217,7 @@ async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_d
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Заказ не найден"
             )
-        logger.info('payment_status', payment_status)
+        logger.info(f'payment_status: {payment_status}')
         # Идемпотентность - если уже обработали
         if order.status == OrderStatus.PAID and payment_status == "succeeded":
             return {"status": "ok", "message": "Заказ уже обработан"}
@@ -237,7 +236,7 @@ async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_d
                 "quantity": int(order.quantity),
                 "idempotency_key": f"order_paid_{order.id}_{uuid.uuid4()}",
             }
-            logger.info("event_data", event_data)
+            logger.info(f"event_data: {event_data}")
             # Сохраняем в outbox
             outbox_event = await outbox_service.save(
                 db=db, event_type="order.paid", event_data=event_data, order_id=order.id

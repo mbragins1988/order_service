@@ -28,13 +28,13 @@ class CatalogClient:
         try:
             headers = {"X-API-Key": API_TOKEN}
             async with httpx.AsyncClient() as client:
-                logger.info("URL", f"{CATALOG_BASE_URL}/api/catalog/items/{item_id}")
+                logger.info(f"URL: {CATALOG_BASE_URL}/api/catalog/items/{item_id}")
                 response = await client.get(
                     f"{CATALOG_BASE_URL}/api/catalog/items/{item_id}",
                     headers=headers,
                     timeout=10.0,
                 )
-                logger.info("RESPONSE", response)
+                logger.info(f"RESPONSE: {response}")
                 if response.status_code == 200:
                     return response.json()
                 elif response.status_code == 404:
@@ -74,7 +74,7 @@ class PaymentsClient:
                     headers=headers,
                     timeout=30.0,
                 )
-                logger.info("RESPONSE", response, payload)
+                logger.info(f"RESPONSE: {response}, payload: {payload}")
 
                 if response.status_code == 201:
                     return response.json()
