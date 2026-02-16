@@ -82,7 +82,7 @@ async def inbox_worker():  # Убрал @staticmethod, он здесь не ну
                             inbox_event.processed_at = datetime.now(timezone.utc)
                             logger.info(f"Обработано CANCELLED: {order_id}, уведомление отправлено")
                         else:
-                            logger.warning(f"Уведомление не отправлено, событие останется pending")
+                            logger.warning("Уведомление не отправлено, событие останется pending")
                     
                     await db.commit()
                     
