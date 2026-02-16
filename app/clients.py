@@ -1,9 +1,18 @@
 import httpx
 import os
+import sys
 from typing import Dict, Any
 from fastapi import HTTPException, status
 import logging
 
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 logger = logging.getLogger(__name__)
 
 CATALOG_BASE_URL = os.getenv("CATALOG_BASE_URL")

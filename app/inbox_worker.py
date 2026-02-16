@@ -11,6 +11,14 @@ from app.schemas import NotificationRequest
 from app.api import notification
 from sqlalchemy import select
 
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 logger = logging.getLogger(__name__)
 
 

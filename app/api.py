@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import os
+import sys
 import uuid
 import logging
 from app.kafka_service import KafkaService
@@ -19,6 +20,14 @@ from app.database import get_db
 from app.clients import CatalogClient, PaymentsClient, NotificationsClient
 from app.outbox_service import OutboxService
 
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 logger = logging.getLogger(__name__)
 
 API_TOKEN = os.getenv("API_TOKEN")
