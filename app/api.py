@@ -345,6 +345,5 @@ async def notification(notifications: NotificationRequest,
             created_at=note.created_at
         )
     except Exception as e:
-        logger.info(f"Не удалось отправить уведомление в Capashino: {e}")
-        # Продолжаем выполнение - уведомление сохранили в БД
+        logger.info(f"Не удалось отправить уведомление: {e}")
         return False
