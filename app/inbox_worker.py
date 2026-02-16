@@ -45,6 +45,7 @@ async def inbox_worker():
                     )
                     user_id = order.user_id
                     await notification(notification_data, user_id, db)
+                    logger.info("Отправлено уведомление - 'Ваш заказ отправлен в доставку'")
                 elif event_type == "order.cancelled":
                     order.status = OrderStatus.CANCELLED
                     logger.info("Обработано CANCELLED: Доставка невозможна")

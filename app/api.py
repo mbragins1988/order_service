@@ -117,6 +117,7 @@ async def create_order(
     )
     user_id = order.user_id
     await notification(notification_data, user_id, db)
+    logger.info("Отправлено уведомление - 'Ваш заказ создан и ожидает оплаты'")
 
     # Создание платежа в Payments Service
     try:
