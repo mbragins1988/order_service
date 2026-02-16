@@ -336,13 +336,14 @@ async def notification(notifications: NotificationRequest,
             reference_id=reference_id,
             idempotency_key=idempotency_key
         )
-        return NotificationResponse(
-            id=note.id,
-            user_id=note.user_id,
-            message=note.message,
-            reference_id=note.reference_id,
-            created_at=note.created_at
-        )
+        # return NotificationResponse(
+        #     id=note.id,
+        #     user_id=note.user_id,
+        #     message=note.message,
+        #     reference_id=note.reference_id,
+        #     created_at=note.created_at
+        # )
+        return True
     except Exception as e:
         logger.info(f"Не удалось отправить уведомление: {e}")
         return False
