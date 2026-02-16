@@ -56,7 +56,7 @@ async def inbox_worker():  # Убрал @staticmethod, он здесь не ну
                         )
                         
                         success_notification_shipped = await notification(notification_data, order.user_id, db)
-                        if success_notification_shipped and notification_data:
+                        if success_notification_shipped:
                             order.status = OrderStatus.SHIPPED
                             inbox_event.status = "processed"
                             inbox_event.processed_at = datetime.now(timezone.utc)
@@ -76,7 +76,7 @@ async def inbox_worker():  # Убрал @staticmethod, он здесь не ну
                         
                         success_notification_canceled = await notification(notification_data, order.user_id, db)
                         
-                        if success_notification_canceled and notification_data:
+                        if success_notification_canceled:
                             order.status = OrderStatus.CANCELLED
                             inbox_event.status = "processed"
                             inbox_event.processed_at = datetime.now(timezone.utc)
