@@ -125,8 +125,9 @@ async def create_order(
         idempotency_key=f"notification_{order.idempotency_key}"  # уникальный ключ
     )
     user_id = order.user_id
-    await notification(notification_data, user_id, db)
+    res = await notification(notification_data, user_id, db)
     logger.info("Отправлено уведомление - 'Ваш заказ создан и ожидает оплаты'")
+    print("Отправлено уведомление - 'Ваш заказ создан и ожидает оплаты'", res)
 
     # Создание платежа в Payments Service
     try:
