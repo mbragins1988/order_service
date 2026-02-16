@@ -108,7 +108,7 @@ async def create_order(
     db.add(order)
     await db.commit()
     await db.refresh(order)
-    
+
     # Создаем уведомление
     notification_data = NotificationRequest(
         message="Ваш заказ создан и ожидает оплаты",
