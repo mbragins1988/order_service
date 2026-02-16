@@ -8,7 +8,7 @@ import uuid
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.database import AsyncSessionLocal
 from app.kafka_service import KafkaService
-from app.models import OutboxEventDB
+from app.models import OrderDB, OutboxEventDB
 from sqlalchemy import select
 from app.schemas import NotificationRequest
 from app.api import notification
@@ -56,35 +56,41 @@ async def outbox_worker():
 
                         # Только order.paid события
                         if event.event_type == "order.paid":
-                            success = await kafka_service.publish_order_paid(
+                            success_kafka = await kafka_service.publish_order_paid(
                                 order_id=event_data["order_id"],
                                 item_id=event_data["item_id"],
                                 quantity=int(event_data["quantity"]),
                                 idempotency_key=event_data["idempotency_key"],
                             )
-                            logger.info("Сообщения 'pending' из outbox отправлены")
+                            logger.info("Попытка отправки сообщения из outbox в брокер")
+                            
+                            # Получаем order для user_id
+                            result = await db.execute(
+                                select(OrderDB).where(OrderDB.id == event_data["order_id"])
+                            )
+                            order = result.scalar_one_or_none()
+                            if not order:
+                                logger.error(f"Заказ не найден: {event_data['order_id']}")
+                                continue
+                            
+                            # Отправка уведомления
+                            notification_data = NotificationRequest(
+                                message="Ваш заказ успешно оплачен и готов к отправке",
+                                reference_id=event_data["order_id"],
+                                idempotency_key=f"notification_paid_{event_data['order_id']}_{uuid.uuid4()}"
+                            )
+                            # Вызываем notification и проверяем результат
+                            notification_result = await notification(notification_data, order.user_id, db)
+                            # Проверяем, что notification_result не None (успех)
+                            success_notification = notification_result is not None
+                            logger.info("Попытка отправки сообщения пользователю")
 
-                            if success:
+                            # ТОЛЬКО если оба успешны - меняем статус
+                            if success_kafka and success_notification:
                                 event.status = "published"
                                 logger.info(
-                                    f"Опубликовано: {event.event_type} для заказа {event.order_id}"
+                                    f"Опубликовано и отправлено уведомление: {event.event_type} для заказа {event.order_id}"
                                 )
-                                # Уведомление об оплате
-                                notification_data = NotificationRequest(
-                                    message="Ваш заказ успешно оплачен и готов к отправке",
-                                    reference_id=event_data["order_id"],  # Берем из event_data
-                                    idempotency_key=f"notification_paid_{event_data['order_id']}_{uuid.uuid4()}"
-                                )
-                                logger.info("Отправлено уведомление - 'Ваш заказ успешно оплачен и готов к отправке'")
-                                # Получаем user_id из БД по order_id
-                                from app.models import OrderDB
-                                result = await db.execute(
-                                    select(OrderDB).where(OrderDB.id == event_data["order_id"])
-                                )
-                                order = result.scalar_one_or_none()
-                                user_id = order.user_id
-                                if order:
-                                    await notification(notification_data, user_id, db)
                             else:
                                 logger.warning(
                                     f"Не удалось опубликовать: {event.event_type}"

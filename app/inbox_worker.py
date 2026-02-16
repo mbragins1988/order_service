@@ -22,54 +22,77 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-@staticmethod
-async def inbox_worker():
+async def inbox_worker():  # Убрал @staticmethod, он здесь не нужен
     """Обрабатывает pending события из inbox"""
     logger.info("Inbox worker запущен")
     while True:
-        db = AsyncSessionLocal()
-        try:
-            # Берем события для обработки
-            result = await db.execute(
-                select(InboxEventDB).where(InboxEventDB.status == "pending")
-            )
-            pending_events = result.scalars().all()
-            for inbox_event in pending_events:
-                event_type = inbox_event.event_type
-                order_id = inbox_event.order_id
-                # Находим и обновляем заказ
-                result = await db.execute(select(OrderDB).where(OrderDB.id == order_id))
-                order = result.scalar_one_or_none()
-                if event_type == "order.shipped":
-                    order.status = OrderStatus.SHIPPED
-                    logger.info(f"Обработано SHIPPED: {order_id}")
-                    inbox_event.status = "processed"
-                    inbox_event.processed_at = datetime.now(timezone.utc)
-                    # Уведомление об доставке
-                    notification_data = NotificationRequest(
-                        message="Ваш заказ отправлен в доставку",
-                        reference_id=order.id,
-                        idempotency_key=f"notification_paid_{order.id}_{uuid.uuid4()}"
-                    )
-                    user_id = order.user_id
-                    await notification(notification_data, user_id, db)
-                    logger.info("Отправлено уведомление - 'Ваш заказ отправлен в доставку'")
-                elif event_type == "order.cancelled":
-                    order.status = OrderStatus.CANCELLED
-                    logger.info("Обработано CANCELLED: Доставка невозможна")
-                    inbox_event.status = "processed"
-                    # Уведомление об отмене
-                    notification_data = NotificationRequest(
-                        message="Ваш заказ отменен. Причина:",
-                        reference_id=order.id,
-                        idempotency_key=f"notification_paid_{order.id}_{uuid.uuid4()}"
-                    )
-            await db.commit()
-        except Exception as e:
-            logger.error(f"Ошибка inbox worker: {e}")
-            await db.rollback()
-        finally:
-            await db.close()
+        async with AsyncSessionLocal() as db:
+            try:
+                # Берем события для обработки
+                result = await db.execute(
+                    select(InboxEventDB).where(InboxEventDB.status == "pending")
+                )
+                pending_events = result.scalars().all()
+                
+                for inbox_event in pending_events:
+                    event_type = inbox_event.event_type
+                    order_id = inbox_event.order_id
+                    
+                    # Находим и обновляем заказ
+                    result = await db.execute(select(OrderDB).where(OrderDB.id == order_id))
+                    order = result.scalar_one_or_none()
+                    
+                    if not order:
+                        logger.error(f"Заказ {order_id} не найден")
+                        continue
+                    
+                    # Обработка в зависимости от типа события
+                    if event_type == "order.shipped":
+                        # Уведомление о доставке
+                        notification_data = NotificationRequest(
+                            message="Ваш заказ отправлен в доставку",
+                            reference_id=order.id,
+                            idempotency_key=f"notification_shipped_{order.id}_{uuid.uuid4()}"
+                        )
+                        
+                        notification_result = await notification(notification_data, order.user_id, db)
+                        success_notification = notification_result is not None
+                        
+                        if success_notification:
+                            order.status = OrderStatus.SHIPPED
+                            inbox_event.status = "processed"
+                            inbox_event.processed_at = datetime.now(timezone.utc)
+                            logger.info(f"Обработано SHIPPED: {order_id}, уведомление отправлено")
+                        else:
+                            logger.warning(f"Уведомление не отправлено для {order_id}, событие останется pending")
+                    
+                    elif event_type == "order.cancelled":
+                        reason = inbox_event.event_data.get("reason", "неизвестная причина")
+                        
+                        # Уведомление об отмене
+                        notification_data = NotificationRequest(
+                            message=f"Ваш заказ отменен. Причина: {reason}",
+                            reference_id=order.id,
+                            idempotency_key=f"notification_cancelled_{order.id}_{uuid.uuid4()}"
+                        )
+                        
+                        notification_result = await notification(notification_data, order.user_id, db)
+                        success_notification = notification_result is not None
+                        
+                        if success_notification:
+                            order.status = OrderStatus.CANCELLED
+                            inbox_event.status = "processed"
+                            inbox_event.processed_at = datetime.now(timezone.utc)
+                            logger.info(f"Обработано CANCELLED: {order_id}, уведомление отправлено")
+                        else:
+                            logger.warning(f"Уведомление не отправлено для {order_id}, событие останется pending")
+                    
+                    await db.commit()
+                    
+            except Exception as e:
+                logger.error(f"Ошибка inbox worker: {e}")
+                await db.rollback()
+            
             await asyncio.sleep(2)
 
 
