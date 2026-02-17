@@ -300,23 +300,46 @@ async def notification(notifications: NotificationRequest,
     """Уведомление пользователю."""
 
     message = notifications.message
-    reference_id = notifications.reference_id  # order-uuid
+    reference_id = notifications.reference_id
     idempotency_key = notifications.idempotency_key
+    
     if not all([message, reference_id, idempotency_key]):
         return HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Некорректные данные",
         )
-    # Проверка идемпотентности
+    
+    # Сначала проверяем идемпотентность
     result = await db.execute(
         select(NotificationDB).where(NotificationDB.idempotency_key == idempotency_key)
     )
-    existing_order = result.scalar_one_or_none()
-    if existing_order:
-        return HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Сообщение уже отправлялось",
+    existing = result.scalar_one_or_none()
+    if existing:
+        # Уже отправляли - возвращаем существующее
+        return NotificationResponse(
+            id=existing.id,
+            user_id=existing.user_id,
+            message=existing.message,
+            reference_id=existing.reference_id,
+            created_at=existing.created_at
         )
+    
+    # Потом отправляем во внешний сервис
+    try:
+        await NotificationsClient.send_notification(
+            message=message,
+            reference_id=reference_id,
+            idempotency_key=idempotency_key
+        )
+    except Exception as e:
+        logger.info(f"Не удалось отправить уведомление: {e}")
+        # Если внешний сервис упал - НЕ сохраняем в БД
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Notifications Service недоступен: {e}"
+        )
+    
+    # После успешной отправки сохраняем в БД
     note = NotificationDB(
         id=str(uuid.uuid4()),
         user_id=user_id,
@@ -324,26 +347,15 @@ async def notification(notifications: NotificationRequest,
         reference_id=reference_id,
         idempotency_key=idempotency_key
     )
-    # Добавляем в сессию
     db.add(note)
-    # Сохраняем в БД (commit)
     await db.commit()
-    # Обновляем объект (получаем сгенерированные поля)
     await db.refresh(note)
-    try:
-        await NotificationsClient.send_notification(
-            message=message,
-            reference_id=reference_id,
-            idempotency_key=idempotency_key
-        )
-        # return NotificationResponse(
-        #     id=note.id,
-        #     user_id=note.user_id,
-        #     message=note.message,
-        #     reference_id=note.reference_id,
-        #     created_at=note.created_at
-        # )
-        return True
-    except Exception as e:
-        logger.info(f"Не удалось отправить уведомление: {e}")
-        return False
+    
+    # Возвращаем успешный ответ
+    return NotificationResponse(
+        id=note.id,
+        user_id=note.user_id,
+        message=note.message,
+        reference_id=note.reference_id,
+        created_at=note.created_at
+    )
