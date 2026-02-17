@@ -14,7 +14,7 @@ COPY pyproject.toml uv.lock ./
 
 # Устанавливаем зависимости в систему
 RUN uv pip install --system --no-cache -r pyproject.toml
-
+USER appuser
 # Копируем Alembic миграции
 COPY alembic.ini .
 COPY alembic/ ./alembic/
