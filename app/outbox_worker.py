@@ -86,9 +86,6 @@ async def outbox_worker():
                                 notification_data, order.user_id, db
                             )
                             logger.info("Попытка отправки сообщения пользователю")
-                            logger.warning(
-                                f"result_notification -  {notification_result}"
-                            )
                             # ТОЛЬКО если оба успешны - меняем статус
                             if success_kafka and notification_result:
                                 event.status = "published"

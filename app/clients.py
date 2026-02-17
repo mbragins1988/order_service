@@ -75,7 +75,6 @@ class PaymentsClient:
                 logger.info(f"RESPONSE: {response}, payload: {payload}")
 
                 if response.status_code == 201:
-                    print(f"В клиенте ответ - {response.json()}")
                     return response.json()
                 else:
                     raise Exception(

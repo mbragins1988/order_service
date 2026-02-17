@@ -125,13 +125,12 @@ async def create_order(
     )
 
     user_id = order.user_id
-    max_retries = 5
+    max_retries = 10
     retry_count = 0
     notification_sent = False
 
     while not notification_sent and retry_count < max_retries:
         result = await notification(notification_data, user_id, db)
-        logger.info(f"RESULT - {result}, Попытка {retry_count + 1}")
         if result:
             notification_sent = True
             logger.info(
@@ -161,7 +160,7 @@ async def create_order(
         )
         logger.info(f"Платеж отправлен: {payment_response}")
 
-        # Сохраняем payment_id в заказ
+        # Сохраняем payment_id в заказСоздание заказа
         order.payment_id = payment_response.get("id")
         await db.commit()
         await db.refresh(order)
