@@ -32,7 +32,7 @@ RUN addgroup --system --gid 1000 appuser && \
     chown -R appuser:appuser /app
 
 # Переключаемся на пользователя (все последующие команды будут от него)
-USER appuser
+USER 1000
 
 # Запускаем через entrypoint
 ENTRYPOINT ["./entrypoint.sh"]
