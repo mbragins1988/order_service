@@ -95,6 +95,7 @@ async def outbox_worker():
                                 logger.info(
                                     f"Опубликовано и отправлено уведомление: {event.event_type} для заказа {event.order_id}"
                                 )
+                                await db.commit()
                             else:
                                 logger.warning(
                                     f"Не удалось опубликовать: {event.event_type}"
@@ -103,13 +104,10 @@ async def outbox_worker():
                             logger.warning(
                                 f"Пропускаем неизвестный тип: {event.event_type}"
                             )
-                        await session.commit()
                     except Exception as e:
                         logger.error(f"Ошибка обработки события {event.id}: {e}")
                         await db.rollback()  # Откатываем изменения для этого события
                         continue  # Переходим к следующему
-                    finally:
-                        await session.close()
 
             # 3. Ждем перед следующей проверкой
             await asyncio.sleep(3)
