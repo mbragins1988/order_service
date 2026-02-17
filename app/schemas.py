@@ -40,7 +40,6 @@ class CatalogItem(BaseModel):
 
 
 class ErrorResponse(BaseModel):
-
     detail: str
 
 

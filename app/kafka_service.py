@@ -17,7 +17,7 @@ class KafkaService:
         self.bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
         self.order_events_topic = "student_system-order.events"
         self.shipment_events_topic = "student_system-shipment.events"
-    
+
     async def producer_start(self):
         """Запуск producer"""
         self.producer = AIOKafkaProducer(
@@ -34,12 +34,12 @@ class KafkaService:
             self.shipment_events_topic,
             bootstrap_servers=self.bootstrap_servers,
             group_id="order-service-group",
-            value_deserializer=lambda v: json.loads(v.decode('utf-8'))
+            value_deserializer=lambda v: json.loads(v.decode("utf-8")),
         )
         await self.consumer.start()
         self._started = True
         logger.info(f"Kafka consumer запущен (pid: {os.getpid()})")
-    
+
     async def stop(self):
         """Остановка producer и consumer"""
         if self.producer:
@@ -62,9 +62,9 @@ class KafkaService:
                 "idempotency_key": idempotency_key,
             }
 
-            key_bytes = order_id.encode('utf-8')
-            value_bytes = json.dumps(event).encode('utf-8')
-            
+            key_bytes = order_id.encode("utf-8")
+            value_bytes = json.dumps(event).encode("utf-8")
+
             # Отправляем событие в Kafka
             await self.producer.send_and_wait(
                 topic=self.order_events_topic,
@@ -85,8 +85,8 @@ class KafkaService:
             async for msg in self.consumer:
                 try:
                     event_data = msg.value
-                    event_type = event_data.get('event_type')
-                    order_id = event_data.get('order_id')
+                    event_type = event_data.get("event_type")
+                    order_id = event_data.get("order_id")
 
                     logger.info(f"Получено событие: {event_type} для заказа {order_id}")
 
@@ -113,11 +113,11 @@ class KafkaService:
                         event_data=event_data,
                         order_id=order_id,
                         idempotency_key=idempotency_key,
-                        status='pending'
+                        status="pending",
                     )
                     db.add(inbox_event)
                     await db.commit()
-                    
+
                     # Коммитим offset после успешной обработки
                     await self.consumer.commit()
                     logger.info(f"Событие сохранено в inbox: {inbox_event.id}")

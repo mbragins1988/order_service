@@ -16,10 +16,8 @@ from app.api import notification
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
 
@@ -63,26 +61,34 @@ async def outbox_worker():
                                 idempotency_key=event_data["idempotency_key"],
                             )
                             logger.info("Попытка отправки сообщения из outbox в брокер")
-                            
+
                             # Получаем order для user_id
                             result = await db.execute(
-                                select(OrderDB).where(OrderDB.id == event_data["order_id"])
+                                select(OrderDB).where(
+                                    OrderDB.id == event_data["order_id"]
+                                )
                             )
                             order = result.scalar_one_or_none()
                             if not order:
-                                logger.error(f"Заказ не найден: {event_data['order_id']}")
+                                logger.error(
+                                    f"Заказ не найден: {event_data['order_id']}"
+                                )
                                 continue
-                            
+
                             # Отправка уведомления
                             notification_data = NotificationRequest(
                                 message="Ваш заказ успешно оплачен и готов к отправке",
                                 reference_id=event_data["order_id"],
-                                idempotency_key=f"notification_paid_{event_data['order_id']}_{uuid.uuid4()}"
+                                idempotency_key=f"notification_paid_{event_data['order_id']}_{uuid.uuid4()}",
                             )
                             # Вызываем notification и проверяем результат
-                            notification_result = await notification(notification_data, order.user_id, db)
+                            notification_result = await notification(
+                                notification_data, order.user_id, db
+                            )
                             logger.info("Попытка отправки сообщения пользователю")
-                            logger.warning(f"result_notification -  {notification_result}") 
+                            logger.warning(
+                                f"result_notification -  {notification_result}"
+                            )
                             # ТОЛЬКО если оба успешны - меняем статус
                             if success_kafka and notification_result:
                                 event.status = "published"
@@ -97,11 +103,13 @@ async def outbox_worker():
                             logger.warning(
                                 f"Пропускаем неизвестный тип: {event.event_type}"
                             )
-
+                        await session.commit()
                     except Exception as e:
                         logger.error(f"Ошибка обработки события {event.id}: {e}")
-
-                await db.commit()
+                        await db.rollback()  # Откатываем изменения для этого события
+                        continue  # Переходим к следующему
+                    finally:
+                        await session.close()
 
             # 3. Ждем перед следующей проверкой
             await asyncio.sleep(3)

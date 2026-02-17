@@ -8,10 +8,8 @@ import logging
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
 
@@ -89,40 +87,37 @@ class PaymentsClient:
 
 class NotificationsClient:
     """Клиент для работы с Notifications Service"""
-    
+
     @staticmethod
     async def send_notification(
-        message: str,
-        reference_id: str,
-        idempotency_key: str
+        message: str, reference_id: str, idempotency_key: str
     ) -> dict:
         """Отправить уведомление в Notifications Service"""
         try:
-            headers = {
-                "X-API-Key": API_TOKEN,
-                "Content-Type": "application/json"
-            }
+            headers = {"X-API-Key": API_TOKEN, "Content-Type": "application/json"}
             payload = {
                 "message": message,
                 "reference_id": reference_id,
-                "idempotency_key": idempotency_key
+                "idempotency_key": idempotency_key,
             }
-            
+
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     f"{CATALOG_BASE_URL}/api/notifications",
                     json=payload,
                     headers=headers,
-                    timeout=10.0
+                    timeout=10.0,
                 )
-                
+
                 if response.status_code == 201:
                     return response.json()
                 else:
                     logger.info(f"Ошибка Notifications Service: {response.status_code}")
                     # Генерируем исключение!
-                    raise Exception(f"Notifications Service вернул {response.status_code}")
-                    
+                    raise Exception(
+                        f"Notifications Service вернул {response.status_code}"
+                    )
+
         except Exception as e:
             logger.info(f"Ошибка отправки уведомления: {e}")
             raise

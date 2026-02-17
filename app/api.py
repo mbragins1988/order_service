@@ -14,7 +14,7 @@ from app.schemas import (
     NotificationRequest,
     NotificationResponse,
     CatalogItem,
-    ErrorResponse
+    ErrorResponse,
 )
 from app.models import OrderDB, OrderStatus, NotificationDB
 from app.database import get_db
@@ -24,10 +24,8 @@ from app.outbox_service import OutboxService
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
 
@@ -123,7 +121,7 @@ async def create_order(
     notification_data = NotificationRequest(
         message="Ваш заказ создан и ожидает оплаты",
         reference_id=order_id,
-        idempotency_key=f"notification_{order.idempotency_key}"
+        idempotency_key=f"notification_{order.idempotency_key}",
     )
 
     user_id = order.user_id
@@ -132,24 +130,29 @@ async def create_order(
     notification_sent = False
 
     while not notification_sent and retry_count < max_retries:
-        
         result = await notification(notification_data, user_id, db)
         logger.info(f"RESULT - {result}, Попытка {retry_count + 1}")
         if result:
             notification_sent = True
-            logger.info(f"Уведомление о создании заказа отправлено (попытка {retry_count + 1})")
+            logger.info(
+                f"Уведомление о создании заказа отправлено (попытка {retry_count + 1})"
+            )
         else:
             retry_count += 1
             if retry_count < max_retries:
                 logger.warning(f"Уведомление не отправилось {retry_count}")
                 await asyncio.sleep(1)
             else:
-                logger.error(f"Не удалось отправить уведомление после {max_retries} попыток")
+                logger.error(
+                    f"Не удалось отправить уведомление после {max_retries} попыток"
+                )
 
     # Создание платежа в Payments Service
     try:
         callback_url = f"{SERVICE_URL}/api/orders/payment-callback"
-        logger.info(f"Создание платежа для заказа {order_id}, callback_url: {callback_url}")
+        logger.info(
+            f"Создание платежа для заказа {order_id}, callback_url: {callback_url}"
+        )
         payment_response = await PaymentsClient.create_payment(
             order_id=order_id,
             amount=order_amount,
@@ -169,7 +172,9 @@ async def create_order(
         # Откатываем транзакцию при ошибке
         await db.rollback()
 
-    logger.info(f"Заказ создан: {order_id}, ключ идемпотентности - {order.idempotency_key}")
+    logger.info(
+        f"Заказ создан: {order_id}, ключ идемпотентности - {order.idempotency_key}"
+    )
 
     return OrderResponse(
         id=order.id,
@@ -235,7 +240,7 @@ async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_d
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Заказ не найден"
             )
-        logger.info(f'payment_status: {payment_status}')
+        logger.info(f"payment_status: {payment_status}")
         # Идемпотентность - если уже обработали
         if order.status == OrderStatus.PAID and payment_status == "succeeded":
             return {"status": "ok", "message": "Заказ уже обработан"}
@@ -267,7 +272,7 @@ async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_d
             notification_data = NotificationRequest(
                 message="Ваш заказ отменен. Причина: платеж не прошел",
                 reference_id=order.id,
-                idempotency_key=f"notification_cancelled_{order.id}_{uuid.uuid4()}"
+                idempotency_key=f"notification_cancelled_{order.id}_{uuid.uuid4()}",
             )
             await notification(notification_data, db, user_id=order.user_id)
             logger.info(f"Платеж не прошел для заказа {order_id}")
@@ -294,21 +299,21 @@ async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_d
 
 
 @router.post("/notifications")
-async def notification(notifications: NotificationRequest,
-                       user_id: str,
-                       db: AsyncSession = Depends(get_db)):
+async def notification(
+    notifications: NotificationRequest, user_id: str, db: AsyncSession = Depends(get_db)
+):
     """Уведомление пользователю."""
 
     message = notifications.message
     reference_id = notifications.reference_id
     idempotency_key = notifications.idempotency_key
-    
+
     if not all([message, reference_id, idempotency_key]):
         return HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Некорректные данные",
         )
-    
+
     # Сначала проверяем идемпотентность
     result = await db.execute(
         select(NotificationDB).where(NotificationDB.idempotency_key == idempotency_key)
@@ -321,41 +326,36 @@ async def notification(notifications: NotificationRequest,
             user_id=existing.user_id,
             message=existing.message,
             reference_id=existing.reference_id,
-            created_at=existing.created_at
+            created_at=existing.created_at,
         )
-    
+
     # Потом отправляем во внешний сервис
     try:
         await NotificationsClient.send_notification(
-            message=message,
-            reference_id=reference_id,
-            idempotency_key=idempotency_key
+            message=message, reference_id=reference_id, idempotency_key=idempotency_key
         )
     except Exception as e:
         logger.info(f"Не удалось отправить уведомление: {e}")
         # Если внешний сервис упал - НЕ сохраняем в БД
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Notifications Service недоступен: {e}"
-        )
-    
+        return False
+
     # После успешной отправки сохраняем в БД
     note = NotificationDB(
         id=str(uuid.uuid4()),
         user_id=user_id,
         message=message,
         reference_id=reference_id,
-        idempotency_key=idempotency_key
+        idempotency_key=idempotency_key,
     )
     db.add(note)
     await db.commit()
     await db.refresh(note)
-    
+
     # Возвращаем успешный ответ
     return NotificationResponse(
         id=note.id,
         user_id=note.user_id,
         message=note.message,
         reference_id=note.reference_id,
-        created_at=note.created_at
+        created_at=note.created_at,
     )
