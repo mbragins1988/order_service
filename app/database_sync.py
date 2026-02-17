@@ -1,9 +1,10 @@
+from app.base import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import os
 from dotenv import load_dotenv
 
-
+from app.models import OrderDB, OutboxEventDB, InboxEventDB, NotificationDB
 load_dotenv()
 
 

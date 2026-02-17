@@ -47,7 +47,7 @@ async def outbox_worker():
                 if pending_events:
                     logger.info(f"Найдено {len(pending_events)} pending событий")
 
-                # 2. Пробуем опубликовать каждое
+                # Пробуем опубликовать каждое
                 for event in pending_events:
                     try:
                         event_data = json.loads(event.event_data)
