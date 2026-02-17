@@ -119,7 +119,7 @@ async def create_order(
 
     # Создаем уведомление
     notification_data = NotificationRequest(
-        message="Ваш заказ создан и ожидает оплаты",
+        message="Ваш заказ создан (NEW) и ожидает оплаты",
         reference_id=order_id,
         idempotency_key=f"notification_{order.idempotency_key}",
     )
@@ -269,7 +269,7 @@ async def payment_callback(callback_data: dict, db: AsyncSession = Depends(get_d
             order.status = OrderStatus.CANCELLED
             # Уведомление об отмене
             notification_data = NotificationRequest(
-                message="Ваш заказ отменен. Причина: платеж не прошел",
+                message="Ваш заказ отменен CANCELLED). Причина: платеж не прошел",
                 reference_id=order.id,
                 idempotency_key=f"notification_cancelled_{order.id}_{uuid.uuid4()}",
             )

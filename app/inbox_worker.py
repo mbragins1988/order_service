@@ -51,7 +51,7 @@ async def inbox_worker():  # Убрал @staticmethod, он здесь не ну
                     if event_type == "order.shipped":
                         # Уведомление о доставке
                         notification_data = NotificationRequest(
-                            message="Ваш заказ отправлен в доставку",
+                            message="Ваш заказ отправлен в доставку (SHIPPED)",
                             reference_id=order.id,
                             idempotency_key=f"notification_shipped_{order.id}_{uuid.uuid4()}",
                         )
@@ -79,7 +79,7 @@ async def inbox_worker():  # Убрал @staticmethod, он здесь не ну
 
                         # Уведомление об отмене
                         notification_data = NotificationRequest(
-                            message=f"Ваш заказ отменен. Причина: {reason}",
+                            message=f"Ваш заказ отменен CANCELLED). Причина: {reason}",
                             reference_id=order.id,
                             idempotency_key=f"notification_cancelled_{order.id}_{uuid.uuid4()}",
                         )

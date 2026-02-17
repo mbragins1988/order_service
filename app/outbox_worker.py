@@ -77,7 +77,7 @@ async def outbox_worker():
 
                             # Отправка уведомления
                             notification_data = NotificationRequest(
-                                message="Ваш заказ успешно оплачен и готов к отправке",
+                                message="Ваш заказ успешно оплачен (PAID) и готов к отправке",
                                 reference_id=event_data["order_id"],
                                 idempotency_key=f"notification_paid_{event_data['order_id']}_{uuid.uuid4()}",
                             )
