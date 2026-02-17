@@ -9,14 +9,6 @@ RUN pip install uv && \
 
 WORKDIR /app
 
-# Создаем пользователя и даем права на /app
-RUN addgroup --system --gid 1000 appuser && \
-    adduser --system --uid 1000 --ingroup appuser appuser && \
-    chown -R appuser:appuser /app
-
-# Переключаемся на пользователя (все последующие команды будут от него)
-USER appuser
-
 # Копируем файлы зависимостей
 COPY pyproject.toml uv.lock ./
 
@@ -33,6 +25,14 @@ RUN chmod +x entrypoint.sh
 
 # Копируем код приложения
 COPY app/ ./app/
+
+# Создаем пользователя и даем права на /app
+RUN addgroup --system --gid 1000 appuser && \
+    adduser --system --uid 1000 --ingroup appuser appuser && \
+    chown -R appuser:appuser /app
+
+# Переключаемся на пользователя (все последующие команды будут от него)
+USER appuser
 
 # Запускаем через entrypoint
 ENTRYPOINT ["./entrypoint.sh"]
