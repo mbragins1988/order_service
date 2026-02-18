@@ -59,9 +59,6 @@ async def inbox_worker():  # Убрал @staticmethod, он здесь не ну
                         success_notification_shipped = await notification(
                             notification_data, order.user_id, db
                         )
-                        logger.warning(
-                            f"result_notification - {success_notification_shipped}"
-                        )
                         if success_notification_shipped:
                             order.status = OrderStatus.SHIPPED
                             inbox_event.status = "processed"
