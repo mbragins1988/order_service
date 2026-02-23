@@ -1,22 +1,14 @@
-from app.base import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-import os
-from dotenv import load_dotenv
+from app.config import settings
 
-from app.models import OrderDB, OutboxEventDB, InboxEventDB, NotificationDB
-load_dotenv()
-
-
-DATABASE_URL = os.getenv("POSTGRES_CONNECTION_STRING").replace(
-    "postgres://", "postgresql://"
-)
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Синхронный движок для Alembic и скриптов
+sync_engine = create_engine(settings.SYNC_DATABASE_URL)
+SyncSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_engine)
 
 
-def get_db_sync():
-    db = SessionLocal()
+def get_sync_db():
+    db = SyncSessionLocal()
     try:
         yield db
     finally:

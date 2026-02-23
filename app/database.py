@@ -1,17 +1,12 @@
-from app.base import Base
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-import os
-from dotenv import load_dotenv
+from app.config import settings
 
-load_dotenv()
-
-DATABASE_URL = os.getenv("POSTGRES_CONNECTION_STRING").replace(
-    "postgres://", "postgresql+asyncpg://"
-)
-engine = create_async_engine(DATABASE_URL)
-
+# Асинхронный движок для приложения
+async_engine = create_async_engine(settings.DATABASE_URL)
 AsyncSessionLocal = async_sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
+    async_engine,           # Движок, который будет использовать
+    class_=AsyncSession,    # Тип сессии (асинхронная)
+    expire_on_commit=False  # Настройка: не устаревать после коммита
 )
 
 
