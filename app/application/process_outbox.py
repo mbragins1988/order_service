@@ -14,14 +14,8 @@ class ProcessOutboxEventsUseCase:
         """Обрабатывает pending события из outbox. Возвращает количество обработанных."""
         processed = 0
 
-        async with self._uow() as uow:
-            # Получаем pending события
+        async with self._uow() as uow:  # создается сессия
             pending = await uow.outbox.get_pending(limit=limit)
-
-            if not pending:
-                return 0
-
-            logger.info(f"Processing {len(pending)} outbox events")
 
             for event in pending:
                 try:
