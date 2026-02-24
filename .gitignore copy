@@ -7,8 +7,6 @@ wheels/
 kube/
 *.egg-info
 docker-compose.yml
-.python-version
-test.py
 # alembic.ini
 
 # Virtual environments

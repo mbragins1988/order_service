@@ -5,7 +5,7 @@ load_dotenv()
 
 
 class Settings:
-    # Database
+    # Database/
     POSTGRES_CONNECTION_STRING: str = os.getenv("POSTGRES_CONNECTION_STRING", "")
 
     # API
