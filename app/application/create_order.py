@@ -7,6 +7,7 @@ from app.domain.models import Order, OrderStatus, Item
 from app.domain.exceptions import ItemNotFoundError, InsufficientStockError
 from app.application.interfaces import UnitOfWork, CatalogService, PaymentsService, NotificationsService
 
+
 logger = logging.getLogger(__name__)
 
 
