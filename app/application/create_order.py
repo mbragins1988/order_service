@@ -96,7 +96,7 @@ class CreateOrderUseCase:
                 await uow.commit()
 
         except Exception as e:
-            logger.error(f"Payment creation failed: {e}")
+            logger.error(f"Ошибка создания заказа: {e}")
             # Не блокируем создание заказа
 
         return order
