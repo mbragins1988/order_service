@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from app.database import AsyncSessionLocal
-from app.infrastructure.unit_of_work import SQLAlchemyUnitOfWork
+from app.infrastructure.unit_of_work import UnitOfWork
 from app.infrastructure.http_clients import HTTPNotificationsClient
 from app.application.process_inbox import ProcessInboxEventsUseCase
 from app.config import settings
@@ -23,7 +23,7 @@ async def inbox_worker():
 
     # Use case
     use_case = ProcessInboxEventsUseCase(
-        unit_of_work=lambda: SQLAlchemyUnitOfWork(AsyncSessionLocal),
+        unit_of_work=lambda: UnitOfWork(AsyncSessionLocal),
         notifications_client=notifications_client
     )
 

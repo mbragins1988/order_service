@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from app.database import AsyncSessionLocal
-from app.infrastructure.unit_of_work import SQLAlchemyUnitOfWork
+from app.infrastructure.unit_of_work import UnitOfWork
 from app.infrastructure.http_clients import HTTPNotificationsClient
 from app.infrastructure.kafka_producer import KafkaProducerClient
 from app.application.process_outbox import ProcessOutboxEventsUseCase
@@ -28,7 +28,7 @@ async def outbox_worker():
 
     # Use case
     use_case = ProcessOutboxEventsUseCase(
-        unit_of_work=lambda: SQLAlchemyUnitOfWork(AsyncSessionLocal),
+        unit_of_work=lambda: UnitOfWork(AsyncSessionLocal),
         kafka_producer=kafka_producer,
         notifications_client=notifications_client
     )
