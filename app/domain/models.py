@@ -1,8 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import Optional
-from pydantic import BaseModel, Field
-import uuid
+from pydantic import BaseModel
 
 
 class OrderStatus(str, Enum):
@@ -20,7 +19,7 @@ class Order(BaseModel):
     item_id: str
     status: OrderStatus
     idempotency_key: str
-    payment_id: Optional[str] = None
+    payment_id: str | None = None
     created_at: datetime
     updated_at: datetime
 

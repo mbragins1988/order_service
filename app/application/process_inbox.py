@@ -48,13 +48,23 @@ class ProcessInboxEventsUseCase:
                                 event_type="notification.send",
                                 event_data={
                                     "user_id": order.user_id,
-                                    "message": "Ваш заказ отправлен в доставку",
+                                    "message": "Ваш заказ отправлен в доставку (SHIPPED)",
                                     "reference_id": order_id
                                 },
                                 order_id=order_id
                             )
-
                             logger.info(f"Заказ {order_id} отмечен SHIPPED")
+                                                        # Уведомление
+                            notifications = await self._notifications.send(
+                                message="Ваш заказ отправлен в доставку (SHIPPED)",
+                                reference_id=order.id,
+                                idempotency_key=f"notification_created_{order.idempotency_key}",
+                                user_id=order.user_id
+                            )
+                            if notifications:
+                                logger.info(f"Отправлено уведомление 'Ваш заказ отправлен в доставку (SHIPPED)' для {order.id}")
+                            else:
+                                logger.info(f"Не отправлено уведомление 'Ваш заказ отправлен в доставку (SHIPPED)' для {order.id}")
                         else:
                             logger.warning(f"Заказ {order_id} не может быть доставлен (status: {order.status})")
 
@@ -73,8 +83,18 @@ class ProcessInboxEventsUseCase:
                                 },
                                 order_id=order_id
                             )
-
                             logger.info(f"Заказ {order_id} отмечен CANCELLED")
+                            # Уведомление
+                            notifications = await self._notifications.send(
+                                message=f"Ваш заказ отменен (CANCELLED). Причина: {reason}",
+                                reference_id=order.id,
+                                idempotency_key=f"notification_created_{order.idempotency_key}",
+                                user_id=order.user_id
+                            )
+                            if notifications:
+                                logger.info(f"Отправлено уведомление 'Ваш заказ отменен (CANCELLED)' для {order.id}")
+                            else:
+                                logger.info(f"Не отправлено уведомление 'Ваш заказ отменен (CANCELLED)' для {order.id}")
                         else:
                             logger.warning(f"Заказ {order_id} не может быть отменен (status: {order.status})")
 

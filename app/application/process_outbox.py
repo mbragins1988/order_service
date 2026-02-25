@@ -37,20 +37,19 @@ class ProcessOutboxEventsUseCase:
                             processed += 1
                             logger.info(f"Опубликовано order.paid event {event['id']}")
 
-                    # Обработка уведомлений
-                    elif event["event_type"] == "notification.send":
-                        success = await self._notifications.send(
-                            message=event_data["message"],
-                            reference_id=event_data["reference_id"],
-                            idempotency_key=f"notification_{event['id']}",
-                            user_id=event_data["user_id"]
-                        )
+                            # Обработка уведомлений
+                            notifications = await self._notifications.send(
+                                message="Ваш заказ успешно оплачен (PAID) и готов к отправке",
+                                reference_id=event_data["reference_id"],
+                                idempotency_key=f"notification_{event['id']}",
+                                user_id=event_data["user_id"]
+                            )
 
-                        if success:
-                            await uow.outbox.mark_as_published(event["id"])
-                            processed += 1
-                            logger.info(f"Отправлено уведомление для мероприятия {event['id']}")
-
+                            if notifications:
+                                await uow.outbox.mark_as_published(event["id"])
+                                logger.info(f"Отправлено уведомление 'Ваш заказ успешно оплачен (PAID) и готов к отправке' для {event['id']}")
+                            else:
+                                logger.info(f"Не отправлено уведомление 'Ваш заказ успешно оплачен (PAID) и готов к отправке' для {event['id']}")
                 except Exception as e:
                     logger.error(f"Ошибка обработки outbox event {event['id']}: {e}")
 
