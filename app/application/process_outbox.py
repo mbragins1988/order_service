@@ -46,7 +46,6 @@ class ProcessOutboxEventsUseCase:
                             )
 
                             if notifications:
-                                await uow.outbox.mark_as_published(event["id"])
                                 logger.info(f"Отправлено уведомление 'Ваш заказ успешно оплачен (PAID) и готов к отправке' для {event['id']}")
                             else:
                                 logger.info(f"Не отправлено уведомление 'Ваш заказ успешно оплачен (PAID) и готов к отправке' для {event['id']}")

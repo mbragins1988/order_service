@@ -42,19 +42,8 @@ class ProcessInboxEventsUseCase:
                     if event_type == "order.shipped":
                         if order.can_be_shipped():
                             await uow.orders.update_status(order_id, OrderStatus.SHIPPED)
-
-                            # Уведомление об отправке
-                            await uow.outbox.create(
-                                event_type="notification.send",
-                                event_data={
-                                    "user_id": order.user_id,
-                                    "message": "Ваш заказ отправлен в доставку (SHIPPED)",
-                                    "reference_id": order_id
-                                },
-                                order_id=order_id
-                            )
                             logger.info(f"Заказ {order_id} отмечен SHIPPED")
-                                                        # Уведомление
+                            # Уведомление
                             notifications = await self._notifications.send(
                                 message="Ваш заказ отправлен в доставку (SHIPPED)",
                                 reference_id=order.id,

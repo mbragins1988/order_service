@@ -43,42 +43,42 @@ class CreateOrderUseCase:
                 logger.info(f"Заказ уже существует: {existing.id}")
                 return existing
 
-        # 2. Проверка каталога
-        item = await self._catalog.get_item(order_data.item_id)
-        if not item:
-            raise ItemNotFoundError(f"Товар {order_data.item_id} не найден")
-        if item.available_qty < order_data.quantity:
-            raise InsufficientStockError(item.available_qty, order_data.quantity)
-        # 3. Расчет суммы
-        amount = float(item.price) * order_data.quantity
-        # 4. Создание заказа
-        now = datetime.now()
-        order = Order(
-            id=str(uuid.uuid4()),
-            user_id=order_data.user_id,
-            quantity=order_data.quantity,
-            item_id=order_data.item_id,
-            status=OrderStatus.NEW,
-            idempotency_key=order_data.idempotency_key,
-            created_at=now,
-            updated_at=now
-        )
-        await uow.orders.create(order)
-        await uow.commit()
-        logger.info(f"Заказ создан: {order.id}")
+            # 2. Проверка каталога
+            item = await self._catalog.get_item(order_data.item_id)
+            if not item:
+                raise ItemNotFoundError(f"Товар {order_data.item_id} не найден")
+            if item.available_qty < order_data.quantity:
+                raise InsufficientStockError(item.available_qty, order_data.quantity)
+            # 3. Расчет суммы
+            amount = float(item.price) * order_data.quantity
+            # 4. Создание заказа
+            now = datetime.now()
+            order = Order(
+                id=str(uuid.uuid4()),
+                user_id=order_data.user_id,
+                quantity=order_data.quantity,
+                item_id=order_data.item_id,
+                status=OrderStatus.NEW,
+                idempotency_key=order_data.idempotency_key,
+                created_at=now,
+                updated_at=now
+            )
+            await uow.orders.create(order)
+            await uow.commit()
+            logger.info(f"Заказ создан: {order.id}")
 
-        # Уведомление
-        notifications = await self._notifications.send(
-            message="Ваш заказ создан (NEW) и ожидает оплаты",
-            reference_id=order.id,
-            idempotency_key=f"notification_created_{order.idempotency_key}",
-            user_id=order.user_id
-        )
-        if notifications:
-            logger.info(f"Отправлено уведомление 'Ваш заказ создан (NEW) и ожидает оплаты' для {order.id}")
-        else:
-            logger.info(f"Не отправлено уведомление 'Ваш заказ создан (NEW) и ожидает оплаты' для {order.id}")
-        print(notifications)
+            # Уведомление
+            notifications = await self._notifications.send(
+                message="Ваш заказ создан (NEW) и ожидает оплаты",
+                reference_id=order.id,
+                idempotency_key=f"notification_created_{order.idempotency_key}",
+                user_id=order.user_id
+            )
+            if notifications:
+                logger.info(f"Отправлено уведомление 'Ваш заказ создан (NEW) и ожидает оплаты' для {order.id}")
+            else:
+                logger.info(f"Не отправлено уведомление 'Ваш заказ создан (NEW) и ожидает оплаты' для {order.id}")
+            print(notifications)
         # Создание платежа
         try:
             callback_url = f"{self._service_url}/api/orders/payment-callback"
