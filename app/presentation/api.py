@@ -100,6 +100,6 @@ async def payment_callback(
             error_message=callback.error_message
         )
         await use_case(dto)
-        return {"status": "ok", "message": "Callback processed"}
+        return {"status": "ok", "message": "Callback обработан"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing callback: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ошибка обработки callback: {str(e)}")

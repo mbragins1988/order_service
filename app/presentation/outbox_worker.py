@@ -22,7 +22,7 @@ notifications_client = HTTPNotificationsClient(settings.CATALOG_BASE_URL, settin
 
 async def outbox_worker():
     """Worker для обработки outbox событий"""
-    logger.info("Outbox worker started")
+    logger.info("Outbox worker запущен")
     
     # Важно: producer нужно запустить!
     await kafka_producer.start()
@@ -41,12 +41,12 @@ async def outbox_worker():
             
             processed = await use_case(limit=5)
             if processed:
-                logger.info(f"Processed {processed} outbox events")
+                logger.info(f"Обработка {processed} outbox events")
                 
             await asyncio.sleep(3)
             
         except Exception as e:
-            logger.error(f"Error in outbox worker cycle: {e}", exc_info=True)
+            logger.error(f"Ошибка в outbox worker: {e}", exc_info=True)
             await asyncio.sleep(10)
 
 

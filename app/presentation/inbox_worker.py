@@ -19,7 +19,7 @@ notifications_client = HTTPNotificationsClient(settings.CATALOG_BASE_URL, settin
 
 async def inbox_worker():
     """Worker для обработки inbox событий"""
-    logger.info("Inbox worker started")
+    logger.info("Inbox worker запущен")
 
     while True:
         try:
@@ -33,12 +33,12 @@ async def inbox_worker():
             
             processed = await use_case(limit=10)
             if processed:
-                logger.info(f"Processed {processed} inbox events")
+                logger.info(f"Обработка {processed} inbox events")
                 
             await asyncio.sleep(2)
             
         except Exception as e:
-            logger.error(f"Error in inbox worker cycle: {e}", exc_info=True)
+            logger.error(f"Ошибка в  inbox worker: {e}", exc_info=True)
             await asyncio.sleep(10)
 
 

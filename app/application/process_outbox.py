@@ -35,7 +35,7 @@ class ProcessOutboxEventsUseCase:
                         if success:
                             await uow.outbox.mark_as_published(event["id"])
                             processed += 1
-                            logger.info(f"Published order.paid event {event['id']}")
+                            logger.info(f"Опубликовано order.paid event {event['id']}")
 
                     # Обработка уведомлений
                     elif event["event_type"] == "notification.send":
@@ -49,10 +49,10 @@ class ProcessOutboxEventsUseCase:
                         if success:
                             await uow.outbox.mark_as_published(event["id"])
                             processed += 1
-                            logger.info(f"Sent notification event {event['id']}")
+                            logger.info(f"Отправлено уведомление для мероприятия {event['id']}")
 
                 except Exception as e:
-                    logger.error(f"Error processing outbox event {event['id']}: {e}")
+                    logger.error(f"Ошибка обработки outbox event {event['id']}: {e}")
 
             await uow.commit()
 

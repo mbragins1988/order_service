@@ -22,16 +22,16 @@ class ProcessPaymentCallbackUseCase:
         self._uow = unit_of_work
 
     async def __call__(self, dto: PaymentCallbackDTO) -> None:
-        logger.info(f"Processing payment callback: {dto}")
+        logger.info(f"Обработка payment callback: {dto}")
 
         async with self._uow() as uow:
             order = await uow.orders.get_by_id(dto.order_id)
             if not order:
-                raise OrderNotFoundError(f"Order {dto.order_id} not found")
+                raise OrderNotFoundError(f"Заказ {dto.order_id} не найден")
 
             # Идемпотентность
             if order.status == OrderStatus.PAID and dto.status == "succeeded":
-                logger.info(f"Order {order.id} already processed")
+                logger.info(f"Заказ {order.id} уже обработан")
                 return
 
             # Обработка успешного платежа
@@ -61,7 +61,7 @@ class ProcessPaymentCallbackUseCase:
                     order_id=dto.order_id
                 )
 
-                logger.info(f"Order {dto.order_id} marked as PAID")
+                logger.info(f"Заказ {dto.order_id} отмечен PAID")
 
             # Обработка неуспешного платежа
             elif dto.status == "failed":
@@ -79,7 +79,7 @@ class ProcessPaymentCallbackUseCase:
                     order_id=dto.order_id
                 )
 
-                logger.info(f"Order {dto.order_id} cancelled due to failed payment")
+                logger.info(f"Заказ {dto.order_id} отменен из-за неудачного платежа")
 
             # Сохраняем payment_id, если его нет
             if not order.payment_id:

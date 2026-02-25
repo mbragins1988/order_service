@@ -22,14 +22,14 @@ async def handle_shipment_event(event_data: dict):
     order_id = event_data.get("order_id")
     idempotency_key = f"{event_type}_{order_id}"
 
-    logger.info(f"Received {event_type} for order {order_id}")
+    logger.info(f"Получено {event_type} для заказа {order_id}")
 
     async with AsyncSessionLocal() as db:
         inbox_repo = SQLAlchemyInboxRepository(db)
 
         # Проверяем, не обрабатывали ли уже
         if await inbox_repo.is_processed(idempotency_key):
-            logger.info(f"Event {idempotency_key} already processed")
+            logger.info(f"Событие {idempotency_key} уже обработано")
             return
 
         # Сохраняем в inbox
@@ -40,7 +40,7 @@ async def handle_shipment_event(event_data: dict):
             idempotency_key=idempotency_key
         )
         await db.commit()
-        logger.info(f"Saved {event_type} to inbox for order {order_id}")
+        logger.info(f"Сохранено {event_type} inbox для заказа {order_id}")
 
 
 async def shipping_consumer():

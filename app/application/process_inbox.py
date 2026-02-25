@@ -22,7 +22,7 @@ class ProcessInboxEventsUseCase:
             if not pending:
                 return 0
 
-            logger.info(f"Processing {len(pending)} inbox events")
+            logger.info(f"Обработка {len(pending)} inbox events")
 
             for event in pending:
                 try:
@@ -34,7 +34,7 @@ class ProcessInboxEventsUseCase:
                     # Находим заказ
                     order = await uow.orders.get_by_id(order_id)
                     if not order:
-                        logger.error(f"Order {order_id} not found for inbox event {event_id}")
+                        logger.error(f"Заказ {order_id} не найден для inbox event {event_id}")
                         await uow.inbox.mark_as_failed(event_id)
                         continue
 
@@ -54,9 +54,9 @@ class ProcessInboxEventsUseCase:
                                 order_id=order_id
                             )
 
-                            logger.info(f"Order {order_id} marked as SHIPPED")
+                            logger.info(f"Заказ {order_id} отмечен SHIPPED")
                         else:
-                            logger.warning(f"Order {order_id} cannot be shipped (status: {order.status})")
+                            logger.warning(f"Заказ {order_id} не может быть доставлен (status: {order.status})")
 
                     # Обработка order.cancelled
                     elif event_type == "order.cancelled":
@@ -74,16 +74,16 @@ class ProcessInboxEventsUseCase:
                                 order_id=order_id
                             )
 
-                            logger.info(f"Order {order_id} marked as CANCELLED")
+                            logger.info(f"Заказ {order_id} отмечен CANCELLED")
                         else:
-                            logger.warning(f"Order {order_id} cannot be cancelled (status: {order.status})")
+                            logger.warning(f"Заказ {order_id} не может быть отменен (status: {order.status})")
 
                     # Помечаем inbox как обработанный
                     await uow.inbox.mark_as_processed(event_id)
                     processed += 1
 
                 except Exception as e:
-                    logger.error(f"Error processing inbox event {event['id']}: {e}")
+                    logger.error(f"Ошибка обработки inbox event {event['id']}: {e}")
 
             await uow.commit()
 

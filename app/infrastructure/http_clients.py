@@ -28,11 +28,11 @@ class HTTPCatalogClient:
                 elif response.status_code == 404:
                     return None
                 else:
-                    raise CatalogServiceError(f"Catalog service error: {response.status_code}")
+                    raise CatalogServiceError(f"Catalog service ошибка: {response.status_code}")
 
         except httpx.RequestError as e:
-            logger.error(f"Catalog service connection error: {e}")
-            raise CatalogServiceError(f"Catalog service unavailable: {str(e)}")
+            logger.error(f"Catalog service ошибка подключения: {e}")
+            raise CatalogServiceError(f"Catalog service не доступен: {str(e)}")
 
 
 class HTTPPaymentsClient:
@@ -61,11 +61,11 @@ class HTTPPaymentsClient:
                 if response.status_code == 201:
                     return response.json()
                 else:
-                    raise PaymentServiceError(f"Payment service error: {response.status_code}")
+                    raise PaymentServiceError(f"Payment service ошибка: {response.status_code}")
 
         except httpx.RequestError as e:
-            logger.error(f"Payment service connection error: {e}")
-            raise PaymentServiceError(f"Payment service unavailable: {str(e)}")
+            logger.error(f"Payment service ошибка подключения: {e}")
+            raise PaymentServiceError(f"Payment service не доступен: {str(e)}")
 
 
 class HTTPNotificationsClient:
@@ -91,7 +91,7 @@ class HTTPNotificationsClient:
                 return response.status_code == 201
 
         except Exception as e:
-            logger.error(f"Notification service error: {e}")
+            logger.error(f"Notification service ошибка: {e}")
             return False
 
     async def try_send(self, message: str, reference_id: str, idempotency_key: str, user_id: str) -> bool:

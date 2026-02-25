@@ -21,13 +21,13 @@ class KafkaConsumerClient:
             value_deserializer=lambda v: json.loads(v.decode())
         )
         await self._consumer.start()
-        logger.info("Kafka consumer started")
+        logger.info("Kafka consumer запущен")
 
     async def stop(self):
         if self._consumer:
             await self._consumer.stop()
             self._consumer = None
-            logger.info("Kafka consumer stopped")
+            logger.info("Kafka consumer остановлен")
 
     async def consume(self, callback):
         """Бесконечный цикл потребления сообщений"""
@@ -35,12 +35,12 @@ class KafkaConsumerClient:
             async for msg in self._consumer:
                 try:
                     event_data = msg.value
-                    logger.info(f"Received event: {event_data.get('event_type')}")
+                    logger.info(f"Отправлено событие: {event_data.get('event_type')}")
                     await callback(event_data)
                     await self._consumer.commit()
                 except Exception as e:
-                    logger.error(f"Error processing message: {e}")
+                    logger.error(f"Ошибка обработки сообщения: {e}")
                     await asyncio.sleep(1)
 
         except Exception as e:
-            logger.error(f"Consumer error: {e}")
+            logger.error(f"Consumer ошибка: {e}")

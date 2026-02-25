@@ -10,5 +10,5 @@ class GetOrderUseCase:
         async with self._uow() as uow:  # ← Здесь тоже
             order = await uow.orders.get_by_id(order_id)
             if not order:
-                raise OrderNotFoundError(f"Order {order_id} not found")
+                raise OrderNotFoundError(f"Заказа {order_id} не найден")
             return order

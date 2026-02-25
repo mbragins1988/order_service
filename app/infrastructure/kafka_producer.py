@@ -17,17 +17,17 @@ class KafkaProducerClient:
                 bootstrap_servers=self._bootstrap_servers
             )
             await self._producer.start()
-            logger.info("Kafka producer started")
+            logger.info("Kafka producer запущен")
 
     async def stop(self):
         if self._producer:
             await self._producer.stop()
             self._producer = None
-            logger.info("Kafka producer stopped")
+            logger.info("Kafka producer остановлен")
 
     async def publish_order_paid(self, order_id: str, item_id: str, quantity: int, idempotency_key: str) -> bool:
         if not self._producer:
-            logger.error("Kafka producer not started")
+            logger.error("Kafka producer не запущен")
             return False
 
         try:
@@ -44,9 +44,9 @@ class KafkaProducerClient:
                 key=order_id.encode(),
                 value=json.dumps(event).encode()
             )
-            logger.info(f"Published order.paid for order {order_id}")
+            logger.info(f"Опубликовано order.paid для заказа {order_id}")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to publish order.paid: {e}")
+            logger.error(f"Ошибка публикации order.paid: {e}")
             return False
