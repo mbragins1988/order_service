@@ -13,9 +13,10 @@ class ProcessOutboxEventsUseCase:
     async def __call__(self, limit: int = 5) -> int:
         """Обрабатывает pending события из outbox. Возвращает количество обработанных."""
         processed = 0
-
+        logger.info("Начало работы Outbox")
         async with self._uow() as uow:  # создается сессия
             pending = await uow.outbox.get_pending(limit=limit)
+            logger.info(f"Получено {len(pending)} не отправленных сообщений")
 
             for event in pending:
                 try:
@@ -40,9 +41,8 @@ class ProcessOutboxEventsUseCase:
                             # Обработка уведомлений
                             notifications = await self._notifications.send(
                                 message="Ваш заказ успешно оплачен (PAID) и готов к отправке",
-                                reference_id=event_data["reference_id"],
+                                reference_id=event_data["order_id"],
                                 idempotency_key=f"notification_{event['id']}",
-                                user_id=event_data["user_id"]
                             )
 
                             if notifications:
