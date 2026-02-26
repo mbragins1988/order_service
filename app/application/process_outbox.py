@@ -56,7 +56,8 @@ class ProcessOutboxEventsUseCase:
                                 logger.info(f"Отправлено уведомление 'Ваш заказ успешно оплачен (PAID) и готов к отправке' для {event['id']}")
                             else:
                                 logger.info(f"Не отправлено уведомление 'Ваш заказ успешно оплачен (PAID) и готов к отправке' для {event['id']}")
-                        logger.info(f"Неуспешная отправка в Кафка {success}")
+                        else:
+                            logger.info(f"Неуспешная отправка в Кафка {success}")
                 except Exception as e:
                     logger.error(f"Ошибка обработки outbox event {event['id']}: {e}")
 
