@@ -56,18 +56,17 @@ class ProcessPaymentCallbackUseCase:
             elif dto.status == "failed":
                 await uow.orders.update_status(dto.order_id, OrderStatus.CANCELLED)
 
-                # Уведомление об отмене
-                error_msg = dto.error_message or "платеж не прошел"
-                await uow.outbox.create(
-                    event_type="notification.send",
-                    event_data={
-                        "user_id": order.user_id,
-                        "message": f"Ваш заказ отменен. Причина: {error_msg}",
-                        "reference_id": dto.order_id
-                    },
-                    order_id=dto.order_id
+                # Уведомление
+                notifications = await self._notifications.send(
+                    message="Ваш заказ отменен (CANCELLED)",
+                    reference_id=order.id,
+                    idempotency_key=f"notification_created_{order.idempotency_key}",
+                    user_id=order.user_id
                 )
-
+                if notifications:
+                    logger.info(f"Отправлено уведомление 'Ваш заказ отменен (CANCELLED)' для {order.id}")
+                else:
+                    logger.info(f"Не отправлено уведомление 'Ваш заказ отменен (CANCELLED)' для {order.id}")
                 logger.info(f"Заказ {dto.order_id} отменен из-за неудачного платежа")
 
             # Сохраняем payment_id, если его нет

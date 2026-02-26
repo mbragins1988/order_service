@@ -13,7 +13,6 @@ class ProcessInboxEventsUseCase:
 
     async def __call__(self, limit: int = 10) -> int:
         """Обрабатывает pending события из inbox. Возвращает количество обработанных."""
-        processed = 0
 
         async with self._uow() as uow:
             # Получаем pending события
@@ -43,6 +42,8 @@ class ProcessInboxEventsUseCase:
                         if order.can_be_shipped():
                             await uow.orders.update_status(order_id, OrderStatus.SHIPPED)
                             logger.info(f"Заказ {order_id} отмечен SHIPPED")
+                            # Помечаем inbox как обработанный
+                            await uow.inbox.mark_as_processed(event_id)
                             # Уведомление
                             notifications = await self._notifications.send(
                                 message="Ваш заказ отправлен в доставку (SHIPPED)",
@@ -87,13 +88,9 @@ class ProcessInboxEventsUseCase:
                         else:
                             logger.warning(f"Заказ {order_id} не может быть отменен (status: {order.status})")
 
-                    # Помечаем inbox как обработанный
-                    await uow.inbox.mark_as_processed(event_id)
-                    processed += 1
-
                 except Exception as e:
                     logger.error(f"Ошибка обработки inbox event {event['id']}: {e}")
 
             await uow.commit()
 
-        return processed
+        return True
