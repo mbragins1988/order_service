@@ -7,7 +7,7 @@ class GetOrderUseCase:
         self._uow = unit_of_work
 
     async def __call__(self, order_id: str) -> Order:
-        async with self._uow() as uow:  # ← Здесь тоже
+        async with self._uow() as uow:
             order = await uow.orders.get_by_id(order_id)
             if not order:
                 raise OrderNotFoundError(f"Заказа {order_id} не найден")
