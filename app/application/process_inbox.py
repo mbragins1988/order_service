@@ -48,6 +48,7 @@ class ProcessInboxEventsUseCase:
                                 message="Ваш заказ отправлен в доставку (SHIPPED)",
                                 reference_id=order.id,
                                 idempotency_key=f"notification_created_{order.idempotency_key}",
+                                user_id=order.user_id
                             )
                             if notifications:
                                 logger.info(f"Отправлено уведомление 'Ваш заказ отправлен в доставку (SHIPPED)' для {order.id}")

@@ -86,7 +86,8 @@ class HTTPNotificationsClient:
                         json={
                             "message": message,
                             "reference_id": reference_id,
-                            "idempotency_key": idempotency_key
+                            "idempotency_key": idempotency_key,
+                            "user_id": user_id
                         },
                         headers={"X-API-Key": self._api_token},
                         timeout=10.0

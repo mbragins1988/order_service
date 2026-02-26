@@ -26,6 +26,11 @@ class ProcessOutboxEventsUseCase:
 
                     # Обработка order.paid событий
                     if event["event_type"] == "order.paid":
+                        # Получаем заказ
+                        order = await uow.orders.get_by_id(event_data["order_id"])
+                        if not order:
+                            logger.error(f"Заказ {event_data['order_id']} не найден")
+                            continue
                         success = await self._kafka.publish_order_paid(
                             order_id=event_data["order_id"],
                             item_id=event_data["item_id"],
@@ -43,6 +48,7 @@ class ProcessOutboxEventsUseCase:
                                 message="Ваш заказ успешно оплачен (PAID) и готов к отправке",
                                 reference_id=event_data["order_id"],
                                 idempotency_key=f"notification_{event['id']}",
+                                user_id=order.user_id
                             )
 
                             if notifications:

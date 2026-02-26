@@ -72,12 +72,13 @@ class CreateOrderUseCase:
                 message="Ваш заказ создан (NEW) и ожидает оплаты",
                 reference_id=order.id,
                 idempotency_key=f"notification_created_{order.idempotency_key}",
+                user_id=order.user_id
             )
             if notifications:
                 logger.info(f"Отправлено уведомление 'Ваш заказ создан (NEW) и ожидает оплаты' для {order.id}")
             else:
                 logger.info(f"Не отправлено уведомление 'Ваш заказ создан (NEW) и ожидает оплаты' для {order.id}")
-            print(notifications)
+
         # Создание платежа
         try:
             callback_url = f"{self._service_url}/api/orders/payment-callback"
