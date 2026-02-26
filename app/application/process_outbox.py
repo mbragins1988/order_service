@@ -39,23 +39,19 @@ class ProcessOutboxEventsUseCase:
                             idempotency_key=event_data["idempotency_key"]
                         )
                         logger.error(f"Попытка отправки в Кафка {success}")
-                        if success:
+
+                        # Обработка уведомлений
+                        notifications = await self._notifications.send(
+                            message="Ваш заказ успешно оплачен (PAID) и готов к отправке",
+                            reference_id=event_data["order_id"],
+                            idempotency_key=f"notification_{event['id']}",
+                            user_id=order.user_id
+                        )
+                        if success and notifications:
                             await uow.outbox.mark_as_published(event["id"])
                             processed += 1
                             logger.info(f"Опубликовано order.paid event {event['id']}")
-
-                            # Обработка уведомлений
-                            notifications = await self._notifications.send(
-                                message="Ваш заказ успешно оплачен (PAID) и готов к отправке",
-                                reference_id=event_data["order_id"],
-                                idempotency_key=f"notification_{event['id']}",
-                                user_id=order.user_id
-                            )
-
-                            if notifications:
-                                logger.info(f"Отправлено уведомление 'Ваш заказ успешно оплачен (PAID) и готов к отправке' для {event['id']}")
-                            else:
-                                logger.info(f"Не отправлено уведомление 'Ваш заказ успешно оплачен (PAID) и готов к отправке' для {event['id']}")
+                            logger.info(f"Отправлено уведомление 'Ваш заказ успешно оплачен (PAID) и готов к отправке' для {event['id']}")
                         else:
                             logger.info(f"Неуспешная отправка в Кафка {success}")
                 except Exception as e:

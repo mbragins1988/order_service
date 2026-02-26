@@ -45,7 +45,7 @@ async def handle_shipment_event(event_data: dict):
 
 async def shipping_consumer():
     """Consumer для событий от Shipping Service"""
-    logger.info("Shipping consumer started")
+    logger.info("Shipping consumer запущен")
 
     consumer = KafkaConsumerClient(settings.KAFKA_BOOTSTRAP_SERVERS)
     await consumer.start()
