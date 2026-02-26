@@ -50,17 +50,6 @@ class ProcessPaymentCallbackUseCase:
                     order_id=dto.order_id
                 )
 
-                # Уведомление об успешной оплате
-                await uow.outbox.create(
-                    event_type="notification.send",
-                    event_data={
-                        "user_id": order.user_id,
-                        "message": "Ваш заказ успешно оплачен и готов к отправке",
-                        "reference_id": dto.order_id
-                    },
-                    order_id=dto.order_id
-                )
-
                 logger.info(f"Заказ {dto.order_id} отмечен PAID")
 
             # Обработка неуспешного платежа
