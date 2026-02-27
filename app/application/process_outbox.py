@@ -5,10 +5,9 @@ logger = logging.getLogger(__name__)
 
 
 class ProcessOutboxEventsUseCase:
-    def __init__(self, unit_of_work, kafka_producer, notifications_client):
+    def __init__(self, unit_of_work, kafka_producer):
         self._uow = unit_of_work
         self._kafka = kafka_producer
-        self._notifications = notifications_client
 
     async def __call__(self, limit: int = 5) -> int:
         """Обрабатывает pending события из outbox. Возвращает количество обработанных."""
