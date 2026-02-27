@@ -28,12 +28,11 @@ async def inbox_worker():
             
             use_case = ProcessInboxEventsUseCase(
                 unit_of_work=uow,
-                notifications_client=notifications_client
             )
             
             processed = await use_case(limit=10)
             if processed:
-                logger.info(f"Обработка {processed} inbox events")
+                logger.info("Обработка inbox events")
                 
             await asyncio.sleep(2)
             

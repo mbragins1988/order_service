@@ -26,7 +26,7 @@ def get_create_order_use_case(db: AsyncSession = Depends(get_db)):
     catalog = HTTPCatalogClient(settings.CATALOG_BASE_URL, settings.API_TOKEN)
     payments = HTTPPaymentsClient(settings.CATALOG_BASE_URL, settings.API_TOKEN)
     notifications = HTTPNotificationsClient(settings.CATALOG_BASE_URL, settings.API_TOKEN)
-    return CreateOrderUseCase(uow, catalog, payments, notifications, settings.SERVICE_URL)
+    return CreateOrderUseCase(uow, catalog, payments, notifications, settings.SERVICE_URL)  # передаем в use case
 
 
 def get_get_order_use_case(db: AsyncSession = Depends(get_db)):
