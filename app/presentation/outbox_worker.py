@@ -36,6 +36,7 @@ async def outbox_worker():
             use_case = ProcessOutboxEventsUseCase(
                 unit_of_work=uow,
                 kafka_producer=kafka_producer,
+                notifications_client=notifications_client
             )
             
             processed = await use_case(limit=5)
