@@ -9,13 +9,12 @@ logger = logging.getLogger(__name__)
 class ProcessInboxEventsUseCase:
     def __init__(self, unit_of_work, notifications_client):
         self._uow = unit_of_work
-        self._notifications_client = notifications_client
+        self._notifications = notifications_client
 
     async def __call__(self, limit: int = 10) -> int:
         """Обрабатывает pending события из inbox. Возвращает количество обработанных."""
 
         async with self._uow() as uow:
-            # Получаем pending события
             pending = await uow.inbox.get_pending(limit=limit)
 
             if not pending:
@@ -42,19 +41,22 @@ class ProcessInboxEventsUseCase:
                         if order.can_be_shipped():
                             await uow.orders.update_status(order_id, OrderStatus.SHIPPED)
                             logger.info(f"Заказ {order_id} отмечен SHIPPED")
-                            # Помечаем inbox как обработанный
-                            await uow.inbox.mark_as_processed(event_id)
-                            # Уведомление
+                            
+                            # Отправляем уведомление
                             notifications = await self._notifications.send(
                                 message="Ваш заказ отправлен в доставку (SHIPPED)",
                                 reference_id=order.id,
-                                idempotency_key=f"notification_created_{order.idempotency_key}",
+                                idempotency_key=f"notification_shipped_{order.id}",
                                 user_id=order.user_id
                             )
+                            
                             if notifications:
-                                logger.info(f"Отправлено уведомление 'Ваш заказ отправлен в доставку (SHIPPED)' для {order.id}")
+                                # ТОЛЬКО ПОСЛЕ УСПЕШНОЙ ОТПРАВКИ помечаем как обработанный
+                                await uow.inbox.mark_as_processed(event_id)
+                                logger.info(f"Отправлено уведомление SHIPPED для {order.id}")
                             else:
-                                logger.info(f"Не отправлено уведомление 'Ваш заказ отправлен в доставку (SHIPPED)' для {order.id}")
+                                logger.warning(f"Не удалось отправить уведомление SHIPPED для {order.id}")
+                                # Не помечаем как обработанный - повторится позже
                         else:
                             logger.warning(f"Заказ {order_id} не может быть доставлен (status: {order.status})")
 
@@ -62,29 +64,22 @@ class ProcessInboxEventsUseCase:
                     elif event_type == "order.cancelled":
                         if order.can_be_cancelled():
                             await uow.orders.update_status(order_id, OrderStatus.CANCELLED)
-
                             reason = event_data.get("reason", "неизвестная причина")
-                            await uow.outbox.create(
-                                event_type="notification.send",
-                                event_data={
-                                    "user_id": order.user_id,
-                                    "message": f"Ваш заказ отменен. Причина: {reason}",
-                                    "reference_id": order_id
-                                },
-                                order_id=order_id
-                            )
                             logger.info(f"Заказ {order_id} отмечен CANCELLED")
-                            # Уведомление
+                            
+                            # Отправляем уведомление (только напрямую, без outbox)
                             notifications = await self._notifications.send(
                                 message=f"Ваш заказ отменен (CANCELLED). Причина: {reason}",
                                 reference_id=order.id,
-                                idempotency_key=f"notification_created_{order.idempotency_key}",
+                                idempotency_key=f"notification_cancelled_{order.id}",
                                 user_id=order.user_id
                             )
+                            
                             if notifications:
-                                logger.info(f"Отправлено уведомление 'Ваш заказ отменен (CANCELLED)' для {order.id}")
+                                await uow.inbox.mark_as_processed(event_id)
+                                logger.info(f"Отправлено уведомление CANCELLED для {order.id}")
                             else:
-                                logger.info(f"Не отправлено уведомление 'Ваш заказ отменен (CANCELLED)' для {order.id}")
+                                logger.warning(f"Не удалось отправить уведомление CANCELLED для {order.id}")
                         else:
                             logger.warning(f"Заказ {order_id} не может быть отменен (status: {order.status})")
 
