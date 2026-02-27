@@ -15,7 +15,8 @@ class ProcessOutboxEventsUseCase:
 
         async with self._uow() as uow:  # создается сессия
             pending = await uow.outbox.get_pending(limit=limit)
-
+            if pending:
+                logger.info(f"В обработке {len(pending)} сообщений")
             for event in pending:
                 try:
                     event_data = event["event_data"]

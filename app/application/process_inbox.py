@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class ProcessInboxEventsUseCase:
     def __init__(self, unit_of_work, notifications_client):
         self._uow = unit_of_work
-        self.notifications_client = notifications_client
+        self._notifications_client = notifications_client
 
     async def __call__(self, limit: int = 10) -> int:
         """Обрабатывает pending события из inbox. Возвращает количество обработанных."""
