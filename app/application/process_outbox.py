@@ -36,7 +36,9 @@ class ProcessOutboxEventsUseCase:
                             quantity=event_data["quantity"],
                             idempotency_key=event_data["idempotency_key"]
                         )
-                        logger.error(f"Попытка отправки в Кафка {success}")
+                        if not success:
+                            logger.error(f"Неудачная отправка в Кафка {success}")
+                        logger.error(f"Сообщение отправлено в Кафка {success}")
 
                         # Обработка уведомлений
                         notifications = await self._notifications.send(
