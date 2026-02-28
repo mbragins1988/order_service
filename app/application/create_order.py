@@ -77,7 +77,7 @@ class CreateOrderUseCase:
             if notifications:
                 logger.info(f"Отправлено уведомление 'Ваш заказ создан (NEW) и ожидает оплаты' для {order.id}")
             else:
-                logger.info(f"Не отправлено уведомление 'Ваш заказ создан (NEW) и ожидает оплаты' для {order.id}")
+                logger.warning(f"Не отправлено уведомление 'Ваш заказ создан (NEW) и ожидает оплаты' для {order.id}")
 
         # Создание платежа
         try:

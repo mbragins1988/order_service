@@ -27,7 +27,7 @@ class ProcessOutboxEventsUseCase:
                     if event["event_type"] == "order.paid":
                         # Получаем заказ
                         order = await uow.orders.get_by_id(event_data["order_id"])
-                        logger.error(f"В outbox найден заказ {order}")
+                        logger.info(f"В outbox найден заказ {order}")
                         if not order:
                             logger.error(f"Заказ {event_data['order_id']} не найден")
                             continue
@@ -39,7 +39,7 @@ class ProcessOutboxEventsUseCase:
                         )
                         if not success:
                             logger.error(f"Неудачная отправка в Кафка {success}")
-                        logger.error(f"Сообщение отправлено в Кафка {success}")
+                        logger.info(f"Сообщение отправлено в Кафка {success}")
 
                         # Обработка уведомлений
                         notifications = await self._notifications.send(

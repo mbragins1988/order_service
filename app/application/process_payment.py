@@ -66,8 +66,8 @@ class ProcessPaymentCallbackUseCase:
                 if notifications:
                     logger.info(f"Отправлено уведомление 'Ваш заказ отменен (CANCELLED)' для {order.id}")
                 else:
-                    logger.info(f"Не отправлено уведомление 'Ваш заказ отменен (CANCELLED)' для {order.id}")
-                logger.info(f"Заказ {dto.order_id} отменен из-за неудачного платежа")
+                    logger.warning(f"Не отправлено уведомление 'Ваш заказ отменен (CANCELLED)' для {order.id}")
+                logger.warning(f"Заказ {dto.order_id} отменен из-за неудачного платежа")
 
             # Сохраняем payment_id, если его нет
             if not order.payment_id:
