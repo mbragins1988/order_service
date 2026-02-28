@@ -23,7 +23,7 @@ class ProcessOutboxEventsUseCase:
                     if isinstance(event_data, str):
                         event_data = json.loads(event_data)
 
-                    # Обработка order.paid событий.
+                    # Обработка order.paid событий
                     if event["event_type"] == "order.paid":
                         # Получаем заказ
                         order = await uow.orders.get_by_id(event_data["order_id"])
