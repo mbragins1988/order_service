@@ -29,7 +29,7 @@ class ProcessOutboxEventsUseCase:
                         order = await uow.orders.get_by_id(event_data["order_id"])
                         logger.info(f"В outbox найден заказ {order}")
                         if not order:
-                            logger.error(f"Заказ {event_data['order_id']} не найден")
+                            logger.warning(f"Заказ {event_data['order_id']} не найден")
                             continue
                         success = await self._kafka.publish_order_paid(
                             order_id=event_data["order_id"],
@@ -38,7 +38,7 @@ class ProcessOutboxEventsUseCase:
                             idempotency_key=event_data["idempotency_key"]
                         )
                         if not success:
-                            logger.error(f"Неудачная отправка в Кафка {success}")
+                            logger.warning(f"Неудачная отправка в Кафка {success}")
                         logger.info(f"Сообщение отправлено в Кафка {success}")
 
                         # Обработка уведомлений
@@ -53,7 +53,7 @@ class ProcessOutboxEventsUseCase:
                             logger.info(f"Опубликовано order.paid event {event['id']}")
                             logger.info(f"Отправлено уведомление 'Ваш заказ успешно оплачен (PAID) и готов к отправке' для {event['id']}")
                         else:
-                            logger.info(f"Неуспешная отправка в Кафка {success}")
+                            logger.warning(f"Неуспешная отправка в Кафка {success}")
                 except Exception as e:
                     logger.error(f"Ошибка обработки outbox event {event['id']}: {e}")
 
