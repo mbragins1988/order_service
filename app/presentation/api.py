@@ -16,27 +16,34 @@ from app.infrastructure.http_clients import (
     HTTPCatalogClient, HTTPPaymentsClient, HTTPNotificationsClient
 )
 from app.config import settings
+from app.database import AsyncSessionLocal
 
 router = APIRouter()
 
 
 # Фабрики для создания use cases
-def get_create_order_use_case(db: AsyncSession = Depends(get_db)):
-    uow = UnitOfWork(lambda: db)
+def get_create_order_use_case():
+    uow = UnitOfWork(AsyncSessionLocal)
     catalog = HTTPCatalogClient(settings.CATALOG_BASE_URL, settings.API_TOKEN)
     payments = HTTPPaymentsClient(settings.CATALOG_BASE_URL, settings.API_TOKEN)
     notifications = HTTPNotificationsClient(settings.CATALOG_BASE_URL, settings.API_TOKEN)
     return CreateOrderUseCase(uow, catalog, payments, notifications, settings.SERVICE_URL)  # передаем в use case
 
 
-def get_get_order_use_case(db: AsyncSession = Depends(get_db)):
-    uow = UnitOfWork(lambda: db)
+def get_get_order_use_case():
+    uow = UnitOfWork(AsyncSessionLocal)
     return GetOrderUseCase(uow)
 
 
-def get_process_payment_use_case(db: AsyncSession = Depends(get_db)):
-    uow = UnitOfWork(lambda: db)
-    return ProcessPaymentCallbackUseCase(uow)
+def get_process_payment_use_case():
+    uow = UnitOfWork(AsyncSessionLocal)
+    notifications = HTTPNotificationsClient(  # ← создаем клиент
+        base_url=settings.CATALOG_BASE_URL,
+        api_token=settings.API_TOKEN,
+        max_retries=10,
+        retry_delay=1.0
+    )
+    return ProcessPaymentCallbackUseCase(uow, notifications)
 
 
 @router.post(

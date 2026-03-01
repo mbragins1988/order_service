@@ -18,8 +18,9 @@ class PaymentCallbackDTO(BaseModel):
 
 
 class ProcessPaymentCallbackUseCase:
-    def __init__(self, unit_of_work):
+    def __init__(self, unit_of_work, notifications_client):
         self._uow = unit_of_work
+        self._notifications = notifications_client
 
     async def __call__(self, dto: PaymentCallbackDTO) -> None:
         logger.info(f"Обработка payment callback: {dto}")
